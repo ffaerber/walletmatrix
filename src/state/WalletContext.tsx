@@ -27,6 +27,11 @@ import type {
 // Swarm bundles are static so this is read from Vite's build-time env.
 const ALCHEMY_KEY: string = import.meta.env.VITE_ALCHEMY_KEY ?? '';
 
+// Opt-in flag: when true, bridge/swap confirmations call Li.Fi + MetaMask
+// instead of mutating balances locally. Demo wallets always stay local.
+const REAL_TX_ENABLED: boolean =
+  String(import.meta.env.VITE_ENABLE_REAL_TX ?? '').toLowerCase() === 'true';
+
 interface WalletState {
   address: string | null;
   demo: boolean;
@@ -49,12 +54,16 @@ interface TransferArgs {
 interface WalletContextValue extends WalletState {
   tokens: Token[];
   alchemyKey: string;
+  realTxEnabled: boolean;
   connectDemo: () => void;
   connectMetaMask: () => Promise<string>;
   // Reconciles state with the URL. Accepts a concrete 0x address or the
   // literal `demo` sentinel. Idempotent — if the same address is already
   // loaded, does nothing.
   loadAddress: (addressOrDemo: string) => Promise<void>;
+  // Re-scans the current address (native + ERC-20) without resetting UI
+  // state. Used after a real bridge/swap completes so the matrix updates.
+  refreshBalances: () => Promise<void>;
   disconnect: () => void;
   toggleHide: (tid: string) => void;
   hideZeroBalance: () => void;
@@ -298,6 +307,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
   }, [tokens]);
 
+  // Re-run the scanner for the current live (non-demo) address so the
+  // matrix reflects on-chain state after a real transfer completes. We
+  // drop loadedKeyRef first so startScan actually runs.
+  const refreshBalances = useCallback(async (): Promise<void> => {
+    const addr = loadedKeyRef.current;
+    if (!addr || addr === 'demo') return;
+    await startScan(addr);
+  }, [startScan]);
+
   const disconnect = useCallback(() => {
     loadedKeyRef.current = null;
     setState((s) => ({
@@ -314,9 +332,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       ...state,
       tokens,
       alchemyKey: ALCHEMY_KEY,
+      realTxEnabled: REAL_TX_ENABLED,
       connectDemo,
       connectMetaMask,
       loadAddress,
+      refreshBalances,
       disconnect,
       toggleHide,
       hideZeroBalance,
@@ -331,6 +351,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       connectDemo,
       connectMetaMask,
       loadAddress,
+      refreshBalances,
       disconnect,
       toggleHide,
       hideZeroBalance,

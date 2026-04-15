@@ -1,9 +1,16 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useWallet } from '../state/WalletContext';
 import { CHAINS_BY_ID } from '../lib/chains';
 import { TokenIcon, ChainIcon } from './Icons';
 import { fmtAmount, fmtUsd } from '../lib/format';
 import { useToast } from './Toast';
+import {
+  executeQuote,
+  fetchQuote,
+  type TxStage,
+} from '../lib/execute';
+import { resolveTokenDecimals } from '../lib/tokenAddresses';
+import { formatUnits as formatBigIntUnits } from '../lib/rpc';
 import type { Chain, Token, TransferIntent } from '../lib/types';
 
 interface TransferModalProps {
@@ -12,10 +19,21 @@ interface TransferModalProps {
 }
 
 // One modal serves both bridge (same token, different chains) and
-// cross-chain swap (different token). Labels, fees and the center glyph
-// adapt based on whether fromTid === toTid.
+// cross-chain swap (different token). When `realTxEnabled` is true and the
+// wallet is not a demo, the confirm button kicks off the real Li.Fi flow
+// (quote → MetaMask approve → MetaMask swap → status polling). Otherwise
+// we fall back to the in-memory mock transfer.
 export function TransferModal({ intent, onClose }: TransferModalProps) {
-  const { tokens, balances, prices, applyTransfer } = useWallet();
+  const {
+    tokens,
+    balances,
+    prices,
+    applyTransfer,
+    demo,
+    address,
+    realTxEnabled,
+    refreshBalances,
+  } = useWallet();
   const { push } = useToast();
 
   const fromToken = tokens.find((t) => t.id === intent.fromTid);
@@ -25,14 +43,17 @@ export function TransferModal({ intent, onClose }: TransferModalProps) {
 
   const ready = !!(fromToken && toToken && fromChain && toChain);
   const sameToken = intent.fromTid === intent.toTid;
-  const slip = sameToken ? 0.001 : 0.004;
-  const fee = sameToken ? 0.003 : 0.006;
+  const kind = sameToken ? 'Bridge' : 'Cross-Chain Swap';
   const fromPrice = ready
     ? prices[fromToken!.symbol]?.price ?? fromToken!.price ?? 0
     : 0;
   const toPrice = ready
     ? prices[toToken!.symbol]?.price ?? toToken!.price ?? 1
     : 1;
+  // Fallback slippage + fee for the mock estimate when no Li.Fi quote is
+  // available yet.
+  const mockSlip = sameToken ? 0.001 : 0.004;
+  const mockFee = sameToken ? 0.003 : 0.006;
 
   const fromBalance = balances[intent.fromTid]?.[intent.fromNid] ?? 0;
   const toBalance = balances[intent.toTid]?.[intent.toNid] ?? 0;
@@ -40,48 +61,171 @@ export function TransferModal({ intent, onClose }: TransferModalProps) {
   const [amount, setAmount] = useState<string>(
     String(Math.min(fromBalance, intent.fromAmount || 0)),
   );
+  const [stage, setStage] = useState<TxStage>({ kind: 'idle' });
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [liveQuote, setLiveQuote] = useState<Awaited<ReturnType<typeof fetchQuote>> | null>(null);
 
-  const { received, rate } = useMemo(() => {
+  const useReal = realTxEnabled && !demo && !!address;
+
+  // Live-quoted receive if available, else the naive mock math.
+  const { received, rate, feeUsd, gasUsd, duration, toolName } = useMemo(() => {
+    if (liveQuote && ready) {
+      const toDecimals = resolveTokenDecimals(toToken!, intent.toNid);
+      const fromDecimals = resolveTokenDecimals(fromToken!, intent.fromNid);
+      const toAmt = Number(formatBigIntUnits(BigInt(liveQuote.estimate.toAmount), toDecimals));
+      const fromAmt = Number(formatBigIntUnits(BigInt(liveQuote.estimate.fromAmount), fromDecimals)) || 1;
+      const fee = (liveQuote.estimate.feeCosts ?? []).reduce(
+        (sum, c) => sum + Number(c.amountUSD ?? 0),
+        0,
+      );
+      const gas = (liveQuote.estimate.gasCosts ?? []).reduce(
+        (sum, c) => sum + Number(c.amountUSD ?? 0),
+        0,
+      );
+      return {
+        received: toAmt,
+        rate: toAmt / fromAmt,
+        feeUsd: fee,
+        gasUsd: gas,
+        duration: liveQuote.estimate.executionDuration,
+        toolName: liveQuote.toolDetails?.name ?? liveQuote.tool,
+      };
+    }
     const n = Number(amount) || 0;
-    const r = toPrice > 0 ? (n * fromPrice * (1 - slip - fee)) / toPrice : 0;
-    const rt = toPrice > 0 ? (fromPrice * (1 - slip - fee)) / toPrice : 0;
-    return { received: r, rate: rt };
-  }, [amount, fromPrice, toPrice, slip, fee]);
+    const r = toPrice > 0 ? (n * fromPrice * (1 - mockSlip - mockFee)) / toPrice : 0;
+    const rt = toPrice > 0 ? (fromPrice * (1 - mockSlip - mockFee)) / toPrice : 0;
+    return {
+      received: r,
+      rate: rt,
+      feeUsd: 0,
+      gasUsd: 0,
+      duration: 0,
+      toolName: sameToken ? 'Across · Stargate · Hop' : 'Li.Fi · Squid · Jumper',
+    };
+  }, [
+    liveQuote,
+    amount,
+    fromPrice,
+    toPrice,
+    mockSlip,
+    mockFee,
+    ready,
+    fromToken,
+    toToken,
+    intent.fromNid,
+    intent.toNid,
+    sameToken,
+  ]);
+
+  // Debounced quote refresh whenever the amount changes in real-tx mode.
+  useEffect(() => {
+    if (!useReal || !ready) return;
+    const n = Number(amount) || 0;
+    if (n <= 0 || n > fromBalance) {
+      setLiveQuote(null);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setQuoteBusy(true);
+      try {
+        const q = await fetchQuote(
+          {
+            address: address!,
+            fromToken: fromToken!,
+            toToken: toToken!,
+            fromChainId: intent.fromNid,
+            toChainId: intent.toNid,
+            amountHuman: amount,
+          },
+          ctrl.signal,
+        );
+        setLiveQuote(q);
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') {
+          setLiveQuote(null);
+          push((e as Error).message, 'error');
+        }
+      } finally {
+        setQuoteBusy(false);
+      }
+    }, 500);
+    return () => {
+      ctrl.abort();
+      clearTimeout(t);
+    };
+  }, [useReal, ready, amount, fromBalance, fromToken, toToken, intent.fromNid, intent.toNid, address, push]);
 
   if (!ready) return null;
-  // Non-null locals for convenience; by this point the guard above ensures
-  // all four values exist.
   const fromT = fromToken as Token;
   const toT = toToken as Token;
   const fromC = fromChain as Chain;
   const toC = toChain as Chain;
-
-  const kind = sameToken ? 'Bridge' : 'Cross-Chain Swap';
+  const isBusy = stage.kind !== 'idle' && stage.kind !== 'error' && stage.kind !== 'done';
 
   function setMax() {
     setAmount(String(fromBalance));
   }
 
-  function confirm() {
+  async function confirm() {
     const n = Number(amount) || 0;
     if (n <= 0) return push('Enter an amount greater than zero.', 'error');
     if (n > fromBalance) return push('Amount exceeds balance.', 'error');
-    applyTransfer({
-      fromTid: intent.fromTid,
-      fromNid: intent.fromNid,
-      toTid: intent.toTid,
-      toNid: intent.toNid,
-      amount: n,
-    });
-    push(
-      `${kind} submitted: ${fmtAmount(n)} ${fromT.symbol} on ${fromC.name} → ${toT.symbol} on ${toC.name}`,
-      'success',
-    );
-    onClose();
+
+    if (!useReal) {
+      // Demo / real-tx disabled: mutate local state and close.
+      applyTransfer({
+        fromTid: intent.fromTid,
+        fromNid: intent.fromNid,
+        toTid: intent.toTid,
+        toNid: intent.toNid,
+        amount: n,
+      });
+      push(
+        `${kind} submitted: ${fmtAmount(n)} ${fromT.symbol} on ${fromC.name} → ${toT.symbol} on ${toC.name}`,
+        'success',
+      );
+      onClose();
+      return;
+    }
+
+    // Real path. We need a fresh quote if the debounce hasn't landed yet.
+    try {
+      setStage({ kind: 'quoting' });
+      const quote = liveQuote ?? (await fetchQuote({
+        address: address!,
+        fromToken: fromT,
+        toToken: toT,
+        fromChainId: intent.fromNid,
+        toChainId: intent.toNid,
+        amountHuman: amount,
+      }));
+      setLiveQuote(quote);
+      await executeQuote(
+        {
+          address: address!,
+          fromToken: fromT,
+          toToken: toT,
+          fromChainId: intent.fromNid,
+          toChainId: intent.toNid,
+          amountHuman: amount,
+        },
+        quote,
+        setStage,
+      );
+      push(`${kind} complete. Refreshing balances…`, 'success');
+      await refreshBalances();
+      // Give the user a moment to see the done state before closing.
+      setTimeout(onClose, 2000);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      push(msg, 'error');
+      // Keep the modal open with the error stage visible.
+    }
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={isBusy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header>
           <span className={`pill pill-${sameToken ? 'bridge' : 'swap'}`}>{kind}</span>
@@ -90,7 +234,8 @@ export function TransferModal({ intent, onClose }: TransferModalProps) {
             {fromC.short} → {toC.short}
             <ChainIcon chainId={toC.id} size={16} />
           </span>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">×</button>
+          {useReal && <span className="pill route">LIVE</span>}
+          <button className="icon-btn" onClick={onClose} aria-label="Close" disabled={isBusy}>×</button>
         </header>
 
         <div className="transfer-grid">
@@ -108,14 +253,17 @@ export function TransferModal({ intent, onClose }: TransferModalProps) {
               step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              disabled={isBusy}
             />
-            <button type="button" className="max-btn" onClick={setMax}>MAX</button>
+            <button type="button" className="max-btn" onClick={setMax} disabled={isBusy}>MAX</button>
           </div>
         </label>
 
         <div className="estimate">
           <div>
-            <div className="muted small">Estimated receive</div>
+            <div className="muted small">
+              {quoteBusy ? 'Fetching Li.Fi quote…' : liveQuote ? 'Live Li.Fi estimate' : 'Estimated receive'}
+            </div>
             <div className="big">{fmtAmount(received)} {toT.symbol}</div>
           </div>
           <div className="rate">
@@ -123,15 +271,22 @@ export function TransferModal({ intent, onClose }: TransferModalProps) {
           </div>
         </div>
 
+        {liveQuote && (
+          <div className="quote-meta">
+            <span>Tool: <b>{toolName}</b></span>
+            <span>Duration: {Math.max(1, Math.round(duration / 60))}m</span>
+            {feeUsd > 0 && <span>Fee: {fmtUsd(feeUsd)}</span>}
+            {gasUsd > 0 && <span>Gas: {fmtUsd(gasUsd)}</span>}
+          </div>
+        )}
+
         <div className="route-viz">
           <span className="route-node">
             <TokenIcon token={fromT} size={22} />
             {fromT.symbol}
           </span>
           <span className="route-line" />
-          <span className="route-router">
-            {sameToken ? 'Across · Stargate · Hop' : 'Li.Fi · Squid · Jumper'}
-          </span>
+          <span className="route-router">{toolName}</span>
           <span className="route-line" />
           <span className="route-node" style={{ '--c': toC.color } as CSSProperties}>
             <TokenIcon token={toT} size={22} />
@@ -139,17 +294,26 @@ export function TransferModal({ intent, onClose }: TransferModalProps) {
           </span>
         </div>
 
+        {stage.kind !== 'idle' && <StageIndicator stage={stage} />}
+
         <p className="muted small gas-note">
-          Gas paid on {fromC.name}. Protocol fee {(fee * 100).toFixed(2)}%, slippage
-          tolerance {(slip * 100).toFixed(2)}%. Demo mode updates balances locally. In
-          production this opens MetaMask to sign a{sameToken ? ' bridge' : ' cross-chain swap'}{' '}
-          transaction via the Li.Fi API.
+          {useReal ? (
+            <>
+              You will be prompted to switch chain, approve the token (ERC-20 only) and sign the transaction.
+              Execution is routed through Li.Fi — actual bridge / aggregator is chosen at quote time.
+            </>
+          ) : (
+            <>
+              {demo ? 'Demo mode: ' : 'Real-tx mode disabled: '}
+              balances update locally. Set <code>VITE_ENABLE_REAL_TX=true</code> to enable Li.Fi execution.
+            </>
+          )}
         </p>
 
         <div className="modal-actions">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={confirm}>
-            Confirm {kind}
+          <button className="btn ghost" onClick={onClose} disabled={isBusy}>Cancel</button>
+          <button className="btn primary" onClick={confirm} disabled={isBusy || (useReal && quoteBusy)}>
+            {isBusy ? 'Running…' : stage.kind === 'done' ? 'Done ✓' : `Confirm ${kind}`}
           </button>
         </div>
       </div>
@@ -181,4 +345,38 @@ function TransferSide({ label, token, chain, balance }: TransferSideProps) {
       </div>
     </div>
   );
+}
+
+function StageIndicator({ stage }: { stage: TxStage }) {
+  const { label, tone, txHash } = describe(stage);
+  return (
+    <div className={`stage stage-${tone}`}>
+      <span className="stage-dot" />
+      <span className="stage-label">{label}</span>
+      {txHash && (
+        <a
+          href={`https://scan.li.fi/tx/${txHash}`}
+          target="_blank"
+          rel="noreferrer"
+          className="stage-link"
+        >
+          view tx
+        </a>
+      )}
+    </div>
+  );
+}
+
+function describe(s: TxStage): { label: string; tone: 'run' | 'ok' | 'err'; txHash?: string } {
+  switch (s.kind) {
+    case 'idle': return { label: '', tone: 'run' };
+    case 'quoting': return { label: 'Fetching Li.Fi quote…', tone: 'run' };
+    case 'ready': return { label: 'Quote ready', tone: 'run' };
+    case 'switching': return { label: 'Switching network in MetaMask…', tone: 'run' };
+    case 'approving': return { label: s.txHash ? 'Waiting for approve to confirm…' : 'Sign approval in MetaMask…', tone: 'run', txHash: s.txHash };
+    case 'signing': return { label: 'Sign transaction in MetaMask…', tone: 'run' };
+    case 'pending': return { label: s.label, tone: 'run', txHash: s.txHash };
+    case 'done': return { label: 'Complete ✓', tone: 'ok', txHash: s.txHash };
+    case 'error': return { label: `Error: ${s.message}`, tone: 'err' };
+  }
 }

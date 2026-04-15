@@ -173,9 +173,42 @@ src/
 
 ---
 
+## Real bridge / cross-chain swap execution
+
+Setting `VITE_ENABLE_REAL_TX=true` switches the Confirm button in the
+transfer modal from the in-memory mock to a full Li.Fi + MetaMask flow:
+
+1. **Quote** — on every amount change the modal debounces a call to
+   `GET https://li.quest/v1/quote` to get the best route, executable
+   `transactionRequest`, live receive amount, fees, gas costs, and
+   estimated duration. Shown inline under the "Live Li.Fi estimate" label.
+2. **Chain switch** — `wallet_switchEthereumChain` (with
+   `wallet_addEthereumChain` fallback for chains the user hasn't added).
+3. **Approve** — for ERC-20 sources: read `allowance(owner, spender)` via
+   `eth_call`, and if insufficient, send an `approve(spender, amount)`
+   transaction using raw calldata. Waits for the approve to confirm via
+   `eth_getTransactionReceipt`.
+4. **Execute** — `eth_sendTransaction` with the `transactionRequest` from
+   the quote. MetaMask prompts the user to sign.
+5. **Poll** — `GET https://li.quest/v1/status?txHash=…&bridge=…` every few
+   seconds until `DONE` / `FAILED`, labelling progress from the `substatus`
+   field.
+6. **Refresh** — on `DONE` the scanner re-runs for the connected address so
+   the matrix reflects the new on-chain balances.
+
+The orchestrator (`src/lib/execute.ts`) exposes a typed stage machine
+(`TxStage`) so the modal can render a single inline indicator that moves
+through `quoting → switching → approving → signing → pending → done`.
+Errors surface as a terminal `error` stage with the server message.
+
+Known limitations:
+- Approvals are exact-amount. USDT on mainnet requires resetting allowance
+  to 0 first; the current flow will fail until we add that pre-approve.
+- The demo wallet (`/matrix/demo`) always uses the local mock regardless of
+  this flag — the fake address cannot sign.
+
 ## Production TODO
 
-- `confirmTransfer()` currently only updates local balances; wire the Li.Fi SDK (`@lifi/sdk`) or call `POST /v1/transactions` with a signed quote.
 - Replace mock `genTxHistory()` in `HistoryModal` with `alchemy_getAssetTransfers` per token × chain.
 - Spam filtering for discovered tokens via the Uniswap default list.
 - Call `wallet_addEthereumChain` automatically for chains not in the user's MetaMask.
