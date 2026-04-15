@@ -1,7 +1,10 @@
-import type { Token } from './types';
+import type { ChainId, ScanCache, Token } from './types';
 
-const HIDDEN_KEY = 'wm_hidden_tokens';
-const CUSTOM_KEY = 'wm_custom_tokens';
+const HIDDEN_TOKENS_KEY = 'wm_hidden_tokens';
+const HIDDEN_CHAINS_KEY = 'wm_hidden_chains';
+const CUSTOM_TOKENS_KEY = 'wm_custom_tokens';
+const SCAN_CACHE_PREFIX = 'wm_scan_'; // wm_scan_<lowercaseAddress>
+const SCAN_CACHE_VERSION = 1;
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -20,9 +23,60 @@ function write<T>(key: string, value: T): void {
   }
 }
 
+function cacheKey(address: string): string {
+  return SCAN_CACHE_PREFIX + address.toLowerCase();
+}
+
 export const storage = {
-  getHidden: (): Set<string> => new Set(read<string[]>(HIDDEN_KEY, [])),
-  setHidden: (set: Set<string>): void => write(HIDDEN_KEY, [...set]),
-  getCustom: (): Token[] => read<Token[]>(CUSTOM_KEY, []),
-  setCustom: (list: Token[]): void => write(CUSTOM_KEY, list),
+  // --- hidden tokens ------------------------------------------------------
+  getHidden: (): Set<string> => new Set(read<string[]>(HIDDEN_TOKENS_KEY, [])),
+  setHidden: (set: Set<string>): void => write(HIDDEN_TOKENS_KEY, [...set]),
+
+  // --- hidden chains ------------------------------------------------------
+  getHiddenChains: (): Set<ChainId> =>
+    new Set(read<ChainId[]>(HIDDEN_CHAINS_KEY, [])),
+  setHiddenChains: (set: Set<ChainId>): void =>
+    write(HIDDEN_CHAINS_KEY, [...set]),
+
+  // --- custom tokens ------------------------------------------------------
+  getCustom: (): Token[] => read<Token[]>(CUSTOM_TOKENS_KEY, []),
+  setCustom: (list: Token[]): void => write(CUSTOM_TOKENS_KEY, list),
+
+  // --- per-address scan cache --------------------------------------------
+  // Stored separately per address so switching wallets doesn't cross-pollute.
+  // `version` mismatches are treated as cache misses so we can change the
+  // stored shape without manual migration.
+  getScanCache: (address: string): ScanCache | null => {
+    const cached = read<ScanCache | null>(cacheKey(address), null);
+    if (!cached || cached.version !== SCAN_CACHE_VERSION) return null;
+    return cached;
+  },
+  setScanCache: (
+    address: string,
+    data: Omit<ScanCache, 'version' | 'updatedAt'>,
+  ): void => {
+    const payload: ScanCache = {
+      version: SCAN_CACHE_VERSION,
+      updatedAt: Date.now(),
+      ...data,
+    };
+    write(cacheKey(address), payload);
+  },
+  clearScanCache: (address?: string): void => {
+    try {
+      if (address) {
+        localStorage.removeItem(cacheKey(address));
+        return;
+      }
+      // Clear all cache entries.
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(SCAN_CACHE_PREFIX)) localStorage.removeItem(k);
+      }
+    } catch {
+      /* noop */
+    }
+  },
 };
+
+export { SCAN_CACHE_VERSION };

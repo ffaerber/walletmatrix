@@ -40,7 +40,13 @@ interface WalletState {
   balances: Balances;
   prices: Prices;
   hidden: Set<string>;
+  hiddenChains: Set<ChainId>;
   customTokens: Token[];
+  // Epoch ms of the most recent scan (or cache hit). `null` before any load.
+  lastRefreshedAt: number | null;
+  // True when the current data came from localStorage rather than a fresh
+  // scan. Lets the UI show a 'cached' indicator + prompt to refresh.
+  fromCache: boolean;
 }
 
 interface TransferArgs {
@@ -59,15 +65,18 @@ interface WalletContextValue extends WalletState {
   connectMetaMask: () => Promise<string>;
   // Reconciles state with the URL. Accepts a concrete 0x address or the
   // literal `demo` sentinel. Idempotent — if the same address is already
-  // loaded, does nothing.
+  // loaded, does nothing. Will use cached balances if present.
   loadAddress: (addressOrDemo: string) => Promise<void>;
   // Re-scans the current address (native + ERC-20) without resetting UI
-  // state. Used after a real bridge/swap completes so the matrix updates.
+  // state. Used after a real bridge/swap completes, or when the user
+  // clicks the refresh button to bypass cache.
   refreshBalances: () => Promise<void>;
   disconnect: () => void;
   toggleHide: (tid: string) => void;
   hideZeroBalance: () => void;
   showAll: () => void;
+  toggleHideChain: (chainId: ChainId) => void;
+  showAllChains: () => void;
   addCustomToken: (draft: CustomTokenDraft) => void;
   removeCustomToken: (tid: string) => void;
   applyTransfer: (args: TransferArgs) => void;
@@ -84,7 +93,10 @@ function makeInitial(): WalletState {
     balances: {},
     prices: {},
     hidden: storage.getHidden(),
+    hiddenChains: storage.getHiddenChains(),
     customTokens: storage.getCustom(),
+    lastRefreshedAt: null,
+    fromCache: false,
   };
 }
 
@@ -176,13 +188,27 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     );
     const prices = await fetchPrices(symbols);
 
-    setState((s) => ({ ...s, balances, prices, scanning: false }));
+    // 5. Persist so repeat visits don't need to re-scan 15 chains.
+    storage.setScanCache(address, { balances, prices });
+
+    setState((s) => ({
+      ...s,
+      balances,
+      prices,
+      scanning: false,
+      lastRefreshedAt: Date.now(),
+      fromCache: false,
+    }));
   }, []);
 
   // Central URL-reconciling entry point. Callers (typically MatrixPage via
   // useParams) pass whatever is in the :address slot. The `loadedKeyRef`
   // guard makes this idempotent so StrictMode double-invokes, re-renders,
   // and identical navigations don't trigger duplicate scans.
+  //
+  // If a cached snapshot for this address exists in localStorage we
+  // hydrate from it synchronously and skip the scan entirely — the user
+  // can explicitly refresh via the header button to get fresh data.
   const loadAddress = useCallback(async (addressOrDemo: string): Promise<void> => {
     if (addressOrDemo === DEMO_ADDRESS_PARAM) {
       if (loadedKeyRef.current === 'demo') return;
@@ -194,6 +220,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const key = addressOrDemo.toLowerCase();
     if (loadedKeyRef.current === key) return;
     loadedKeyRef.current = key;
+
+    const cached = storage.getScanCache(addressOrDemo);
+    if (cached) {
+      setState((s) => ({
+        ...s,
+        address: addressOrDemo,
+        demo: false,
+        scanning: false,
+        scanProgress: {},
+        balances: cached.balances,
+        prices: cached.prices,
+        lastRefreshedAt: cached.updatedAt,
+        fromCache: true,
+      }));
+      return;
+    }
     await startScan(addressOrDemo);
   }, [connectDemo, startScan]);
 
@@ -250,6 +292,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setState((s) => {
       storage.setHidden(new Set());
       return { ...s, hidden: new Set<string>() };
+    });
+  }, []);
+
+  // --- Chain visibility ---------------------------------------------------
+  const toggleHideChain = useCallback((chainId: ChainId) => {
+    setState((s) => {
+      const next = new Set(s.hiddenChains);
+      if (next.has(chainId)) next.delete(chainId);
+      else next.add(chainId);
+      storage.setHiddenChains(next);
+      return { ...s, hiddenChains: next };
+    });
+  }, []);
+
+  const showAllChains = useCallback(() => {
+    setState((s) => {
+      const empty = new Set<ChainId>();
+      storage.setHiddenChains(empty);
+      return { ...s, hiddenChains: empty };
     });
   }, []);
 
@@ -341,6 +402,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       toggleHide,
       hideZeroBalance,
       showAll,
+      toggleHideChain,
+      showAllChains,
       addCustomToken,
       removeCustomToken,
       applyTransfer,
@@ -356,6 +419,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       toggleHide,
       hideZeroBalance,
       showAll,
+      toggleHideChain,
+      showAllChains,
       addCustomToken,
       removeCustomToken,
       applyTransfer,

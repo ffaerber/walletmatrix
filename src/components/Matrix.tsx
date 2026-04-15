@@ -36,14 +36,16 @@ interface Row {
 }
 
 export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
-  const { tokens, balances, prices, hidden } = useWallet();
+  const { tokens, balances, prices, hidden, hiddenChains } = useWallet();
 
-  // Only show chains that have at least one non-zero balance.
+  // Only show chains that (a) aren't hidden by the user and (b) have at
+  // least one non-zero balance across the visible tokens.
   const activeChains = useMemo<Chain[]>(() => {
-    return CHAINS.filter((c) =>
-      Object.values(balances).some((row) => (row?.[c.id] ?? 0) > 0),
-    );
-  }, [balances]);
+    return CHAINS.filter((c) => {
+      if (hiddenChains.has(c.id)) return false;
+      return Object.values(balances).some((row) => (row?.[c.id] ?? 0) > 0);
+    });
+  }, [balances, hiddenChains]);
 
   // Filter and sort tokens for display.
   const rows = useMemo<Row[]>(() => {

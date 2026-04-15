@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { fmtAmount, fmtUsd, shortAddr, isAddress } from './format';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { fmtAmount, fmtUsd, fmtRelative, shortAddr, isAddress } from './format';
 
 describe('fmtAmount', () => {
   it('returns "0" for zero / falsy', () => {
@@ -42,6 +42,31 @@ describe('shortAddr', () => {
     expect(shortAddr('0x1234567890abcdef1234567890abcdef12345678')).toBe(
       '0x1234…5678',
     );
+  });
+});
+
+describe('fmtRelative', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('returns empty string for null / undefined', () => {
+    expect(fmtRelative(null)).toBe('');
+    expect(fmtRelative(undefined)).toBe('');
+    expect(fmtRelative(0)).toBe('');
+  });
+
+  it('says "just now" for the last ~45 seconds', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T12:00:00Z'));
+    const tenSecondsAgo = Date.now() - 10_000;
+    expect(fmtRelative(tenSecondsAgo)).toBe('just now');
+  });
+
+  it('formats minutes / hours / days', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T12:00:00Z'));
+    expect(fmtRelative(Date.now() - 5 * 60_000)).toBe('5m ago');
+    expect(fmtRelative(Date.now() - 3 * 3600_000)).toBe('3h ago');
+    expect(fmtRelative(Date.now() - 2 * 86_400_000)).toBe('2d ago');
   });
 });
 

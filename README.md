@@ -41,6 +41,8 @@ The Vite config also sets `base: './'` so every asset reference is relative and 
 - **Trust Wallet Assets CDN** for token and chain logos, with graceful fallbacks.
 - **Drag-and-drop** between cells opens a bridge modal (same token) or a cross-chain swap modal (different token) with live Li.Fi-style estimates.
 - **Token manager** (hide/show tokens, hide zero-balance, add custom tokens) persisted in `localStorage`.
+- **Network manager** — hide/show any of the 15 chains from the matrix columns. Hidden chains persist across reloads.
+- **Scan cache** — the first visit to `/matrix/0x…` scans all 15 chains; subsequent visits hydrate from `localStorage` instantly. A `↻ Refresh` button in the header re-runs the scan on demand.
 - **Holding history modal** per token × chain with SVG chart, range tabs and transaction list.
 
 ---
@@ -156,6 +158,7 @@ src/
     TransferModal.tsx          Bridge / cross-chain swap flow
     HistoryModal.tsx           Per-cell holding history + SVG chart
     TokenManager.tsx           Hide/show, custom tokens
+    NetworkManager.tsx         Hide/show chain columns, persisted
     Toast.tsx                  Toast stack + provider
     Icons.tsx                  Token + chain icon components
   lib/
@@ -172,6 +175,35 @@ src/
 ```
 
 ---
+
+## Scan cache + network visibility
+
+The first time a wallet lands on `/matrix/0x…`, the scanner queries all 15
+chain RPCs (native balances) and Alchemy / known-contract fallbacks (ERC-20
+balances) in parallel. The resulting `{ balances, prices, updatedAt }`
+snapshot is persisted to `localStorage` under
+`wm_scan_<lowercaseAddress>` and hydrated synchronously on later visits —
+no network calls. The header shows a `CACHED` badge and the last-refreshed
+relative time (e.g. *Updated 2m ago*).
+
+Users trigger fresh scans explicitly via the `↻ Refresh` button in the
+header. `VITE_ENABLE_REAL_TX` transfers also auto-refresh after a
+successful bridge / swap.
+
+The **Network manager** (🌐 Networks) lets users hide individual chains
+from the matrix without affecting the underlying scan data — unhiding a
+chain brings the column back instantly. The hidden set is stored in
+`wm_hidden_chains`.
+
+Storage format (see `src/lib/storage.ts` and `src/lib/types.ts`):
+```ts
+interface ScanCache {
+  version: number;      // bump to invalidate all cached entries
+  updatedAt: number;    // epoch ms
+  balances: Balances;   // { [tokenId]: { [chainId]: amount } }
+  prices:  Prices;      // { [SYMBOL]: { price, change } }
+}
+```
 
 ## Real bridge / cross-chain swap execution
 

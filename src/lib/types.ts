@@ -76,3 +76,12 @@ export interface CustomTokenDraft {
   icon: string;
   address: string;
 }
+
+// Per-address snapshot stored in localStorage so repeat visits don't need
+// to re-scan 15 chains. `version` lets us invalidate on shape changes.
+export interface ScanCache {
+  version: number;
+  updatedAt: number;      // epoch ms
+  balances: Balances;
+  prices: Prices;
+}

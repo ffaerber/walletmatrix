@@ -27,3 +27,18 @@ export function isAddress(value: string | null | undefined): value is string {
 
 export const DEMO_ADDRESS_PARAM = 'demo';
 
+// Coarse humanised relative-time string — enough for the "cached 2m ago"
+// indicator next to the refresh button.
+export function fmtRelative(epochMs: number | null | undefined): string {
+  if (!epochMs) return '';
+  const delta = Math.max(0, Date.now() - epochMs);
+  const sec = Math.round(delta / 1000);
+  if (sec < 45) return 'just now';
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.round(hr / 24);
+  return `${d}d ago`;
+}
+
