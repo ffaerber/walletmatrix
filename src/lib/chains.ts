@@ -2,10 +2,14 @@
 // rpc endpoints are all keyless public gateways; alchemyNet is used when an
 // Alchemy key is available to enumerate all ERC-20s the wallet has held.
 
-const twLogo = (slug) =>
+import type { Chain, ChainId } from './types';
+
+const twLogo = (slug: string): string =>
   `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${slug}/info/logo.png`;
 
-export const CHAINS = [
+type ChainSeed = Omit<Chain, 'logo'>;
+
+const SEED: ChainSeed[] = [
   { id: 'eth',   name: 'Ethereum',   short: 'ETH',   chainId: '0x1',      color: '#627eea', icon: 'Ξ',  rpc: 'https://cloudflare-eth.com',              alchemyNet: 'eth-mainnet',     twPath: 'ethereum',     native: 'ETH' },
   { id: 'base',  name: 'Base',       short: 'BASE',  chainId: '0x2105',   color: '#0052ff', icon: 'B',  rpc: 'https://mainnet.base.org',                alchemyNet: 'base-mainnet',    twPath: 'base',         native: 'ETH' },
   { id: 'arb',   name: 'Arbitrum',   short: 'ARB',   chainId: '0xa4b1',   color: '#28a0f0', icon: 'A',  rpc: 'https://arb1.arbitrum.io/rpc',            alchemyNet: 'arb-mainnet',     twPath: 'arbitrum',     native: 'ETH' },
@@ -21,10 +25,14 @@ export const CHAINS = [
   { id: 'scrl',  name: 'Scroll',     short: 'SCRL',  chainId: '0x82750',  color: '#ffeeda', icon: 'S',  rpc: 'https://rpc.scroll.io',                   alchemyNet: 'scroll-mainnet',  twPath: 'scroll',       native: 'ETH' },
   { id: 'linea', name: 'Linea',      short: 'LINEA', chainId: '0xe708',   color: '#61dfff', icon: 'L',  rpc: 'https://rpc.linea.build',                 alchemyNet: 'linea-mainnet',   twPath: 'linea',        native: 'ETH' },
   { id: 'mntl',  name: 'Mantle',     short: 'MNTL',  chainId: '0x1388',   color: '#008574', icon: 'M',  rpc: 'https://rpc.mantle.xyz',                  alchemyNet: null,              twPath: 'mantle',       native: 'MNT' },
-].map((c) => ({ ...c, logo: twLogo(c.twPath) }));
+];
 
-export const CHAINS_BY_ID = Object.fromEntries(CHAINS.map((c) => [c.id, c]));
+export const CHAINS: Chain[] = SEED.map((c) => ({ ...c, logo: twLogo(c.twPath) }));
 
-export function chainByChainId(hex) {
-  return CHAINS.find((c) => c.chainId.toLowerCase() === String(hex).toLowerCase()) || null;
+export const CHAINS_BY_ID: Record<ChainId, Chain> = Object.fromEntries(
+  CHAINS.map((c) => [c.id, c]),
+) as Record<ChainId, Chain>;
+
+export function chainByChainId(hex: string): Chain | null {
+  return CHAINS.find((c) => c.chainId.toLowerCase() === hex.toLowerCase()) ?? null;
 }

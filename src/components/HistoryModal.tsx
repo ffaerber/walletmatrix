@@ -1,10 +1,23 @@
 import { useMemo, useState } from 'react';
-import { useWallet } from '../state/WalletContext.jsx';
-import { CHAINS_BY_ID } from '../lib/chains.js';
-import { TokenIcon, ChainIcon } from './Icons.jsx';
-import { fmtAmount, fmtUsd } from '../lib/format.js';
+import { useWallet } from '../state/WalletContext';
+import { CHAINS_BY_ID } from '../lib/chains';
+import { TokenIcon, ChainIcon } from './Icons';
+import { fmtAmount, fmtUsd } from '../lib/format';
+import type { ChainId } from '../lib/types';
 
-const RANGES = [
+interface HistoryModalProps {
+  tokenId: string;
+  chainId: ChainId;
+  onClose: () => void;
+}
+
+interface Range {
+  id: string;
+  label: string;
+  days: number;
+}
+
+const RANGES: Range[] = [
   { id: '1w', label: '1W', days: 7 },
   { id: '1m', label: '1M', days: 30 },
   { id: '3m', label: '3M', days: 90 },
@@ -12,8 +25,11 @@ const RANGES = [
   { id: 'all', label: 'All', days: 720 },
 ];
 
+interface Point { t: number; v: number; }
+interface Tx { kind: string; amount: number; date: number; running: number; }
+
 // Deterministic pseudo-random so the chart is stable per token/chain pair.
-function seeded(seed) {
+function seeded(seed: number): () => number {
   let s = seed;
   return () => {
     s = (s * 9301 + 49297) % 233280;
@@ -21,20 +37,31 @@ function seeded(seed) {
   };
 }
 
-function genHistory(tokenId, chainId, current, days) {
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h;
+}
+
+function genHistory(tokenId: string, chainId: string, current: number, days: number): {
+  points: Point[];
+  txs: Tx[];
+} {
   const rand = seeded(hash(tokenId + chainId));
   const now = Date.now();
-  const points = [];
+  const points: Point[] = [];
   let bal = current * (0.4 + rand() * 0.4);
   for (let i = days; i >= 0; i--) {
     const drift = (rand() - 0.5) * current * 0.05;
     bal = Math.max(0, bal + drift);
     points.push({ t: now - i * 86400000, v: bal });
   }
-  // Snap the final point to the real current balance.
   if (points.length) points[points.length - 1].v = current;
 
-  const txs = [];
+  const txs: Tx[] = [];
   const actions = ['Received', 'Sent', 'Swapped', 'Bridged'];
   for (let i = 0; i < 8; i++) {
     txs.push({
@@ -48,25 +75,19 @@ function genHistory(tokenId, chainId, current, days) {
   return { points, txs };
 }
 
-function hash(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = (h * 16777619) >>> 0;
-  }
-  return h;
-}
-
-export function HistoryModal({ tokenId, chainId, onClose }) {
+export function HistoryModal({ tokenId, chainId, onClose }: HistoryModalProps) {
   const { tokens, balances, prices } = useWallet();
   const token = tokens.find((t) => t.id === tokenId);
   const chain = CHAINS_BY_ID[chainId];
   const [range, setRange] = useState('3m');
-  const current = balances[tokenId]?.[chainId] || 0;
-  const price = prices[token?.symbol]?.price || token?.price || 0;
+
+  if (!token || !chain) return null;
+
+  const current = balances[tokenId]?.[chainId] ?? 0;
+  const price = prices[token.symbol]?.price ?? token.price ?? 0;
 
   const { points, txs } = useMemo(() => {
-    const days = RANGES.find((r) => r.id === range)?.days || 90;
+    const days = RANGES.find((r) => r.id === range)?.days ?? 90;
     return genHistory(tokenId, chainId, current, days);
   }, [tokenId, chainId, current, range]);
 
@@ -131,7 +152,13 @@ export function HistoryModal({ tokenId, chainId, onClose }) {
   );
 }
 
-function Stat({ label, value, sub }) {
+interface StatProps {
+  label: string;
+  value: string;
+  sub?: string;
+}
+
+function Stat({ label, value, sub }: StatProps) {
   return (
     <div className="stat">
       <div className="muted small">{label}</div>
@@ -141,7 +168,7 @@ function Stat({ label, value, sub }) {
   );
 }
 
-function Chart({ points }) {
+function Chart({ points }: { points: Point[] }) {
   const w = 640;
   const h = 180;
   const pad = 4;

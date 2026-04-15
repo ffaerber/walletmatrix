@@ -1,7 +1,13 @@
-import { CHAINS } from '../lib/chains.js';
-import { ChainIcon } from './Icons.jsx';
+import { CHAINS } from '../lib/chains';
+import { ChainIcon } from './Icons';
+import type { ChainId } from '../lib/types';
+import type { CSSProperties } from 'react';
 
-export function ScanOverlay({ progress }) {
+interface ScanOverlayProps {
+  progress: Partial<Record<ChainId, number>>;
+}
+
+export function ScanOverlay({ progress }: ScanOverlayProps) {
   return (
     <div className="scan-overlay">
       <div className="scan-card">
@@ -13,12 +19,13 @@ export function ScanOverlay({ progress }) {
           {CHAINS.map((c) => {
             const reported = progress[c.id];
             const active = reported !== undefined;
-            const hit = reported > 0;
+            const hit = reported !== undefined && reported > 0;
+            const style = { '--c': c.color } as CSSProperties;
             return (
               <div
                 key={c.id}
                 className={`chain-pill ${active ? 'scanned' : ''} ${hit ? 'hit' : ''}`}
-                style={{ '--c': c.color }}
+                style={style}
               >
                 <ChainIcon chainId={c.id} size={20} />
                 <span>{c.short}</span>

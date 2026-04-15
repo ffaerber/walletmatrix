@@ -1,18 +1,24 @@
-import { useState } from 'react';
-import { tokenLogoUrl, chainLogoUrl } from '../lib/icons.js';
-import { CHAINS_BY_ID } from '../lib/chains.js';
+import { useState, type CSSProperties } from 'react';
+import { tokenLogoUrl, chainLogoUrl } from '../lib/icons';
+import { CHAINS_BY_ID } from '../lib/chains';
+import type { ChainId, Token } from '../lib/types';
 
-export function TokenIcon({ token, size = 28 }) {
+interface TokenIconProps {
+  token: Token | null | undefined;
+  size?: number;
+}
+
+export function TokenIcon({ token, size = 28 }: TokenIconProps) {
   const [failed, setFailed] = useState(false);
   const url = tokenLogoUrl(token);
-  const style = {
+  const style: CSSProperties = {
     width: size,
     height: size,
     borderRadius: size / 2,
-    background: token?.bg || '#253044',
+    background: token?.bg ?? '#253044',
     fontSize: Math.max(12, size * 0.5),
   };
-  if (url && !failed) {
+  if (token && url && !failed) {
     return (
       <span className="token-icon" style={style}>
         <img src={url} alt={token.symbol} onError={() => setFailed(true)} />
@@ -21,16 +27,21 @@ export function TokenIcon({ token, size = 28 }) {
   }
   return (
     <span className="token-icon fallback" style={style}>
-      {token?.icon || token?.symbol?.[0] || '?'}
+      {token?.icon ?? token?.symbol?.[0] ?? '?'}
     </span>
   );
 }
 
-export function ChainIcon({ chainId, size = 22 }) {
+interface ChainIconProps {
+  chainId: ChainId;
+  size?: number;
+}
+
+export function ChainIcon({ chainId, size = 22 }: ChainIconProps) {
   const [failed, setFailed] = useState(false);
   const chain = CHAINS_BY_ID[chainId];
   if (!chain) return null;
-  const style = {
+  const style: CSSProperties = {
     width: size,
     height: size,
     borderRadius: size / 2,

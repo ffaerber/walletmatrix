@@ -3,7 +3,7 @@
 A pivot-table view of your crypto wallet across every EVM chain.
 **Tokens as rows. Chains as columns. Drag one cell onto another to bridge or cross-chain swap.**
 
-Built as a Vite + **React Router 7 (HashRouter)** single-page app with no backend — designed to be deployed as a static bundle to **Swarm / Bee**.
+Built as a Vite + **React Router 7 (HashRouter)** + **TypeScript** single-page app with no backend — designed to be deployed as a static bundle to **Swarm / Bee**.
 
 ---
 
@@ -14,7 +14,7 @@ Swarm / Bee gateways serve content-addressed files under `/bzz/<ref>/<path>`. Un
 HashRouter keeps the whole route inside the URL fragment (`…/#/matrix`), which the gateway never sees, so deep links and refreshes work from any Bee node or ENS gateway.
 
 ```js
-// src/router.jsx
+// src/router.tsx
 createHashRouter([
   { path: '/',       element: <LoginPage /> },
   { path: 'matrix',  element: <MatrixPage /> },
@@ -43,6 +43,7 @@ The Vite config also sets `base: './'` so every asset reference is relative and 
 | Layer | Choice |
 |---|---|
 | Build | Vite 6 |
+| Language | TypeScript 5 (strict) |
 | Framework | React 19 + React Router 7 (HashRouter) |
 | Wallet | `window.ethereum` (MetaMask) |
 | Balances | Alchemy JSON-RPC, public RPCs |
@@ -59,7 +60,9 @@ No backend. No keys required for a working demo.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev          # http://localhost:5173
+npm run typecheck    # tsc -b --noEmit
+npm run build        # tsc -b && vite build -> dist/
 ```
 
 Optional `.env`:
@@ -120,30 +123,31 @@ You can then attach an **ENS content hash** (`bzz://<reference>`) to serve it fr
 
 ```
 src/
-  main.jsx                     React entry
-  router.jsx                   HashRouter + routes
-  AppLayout.jsx                Providers + <Outlet />
-  state/WalletContext.jsx      Wallet / scanner / balances store
+  main.tsx                     React entry
+  router.tsx                   HashRouter + routes
+  AppLayout.tsx                Providers + <Outlet />
+  state/WalletContext.tsx      Wallet / scanner / balances store
   pages/
-    LoginPage.jsx              MetaMask + demo entry
-    MatrixPage.jsx             Main pivot view
+    LoginPage.tsx              MetaMask + demo entry
+    MatrixPage.tsx             Main pivot view
   components/
-    Matrix.jsx                 Grid + drag-and-drop cells
-    ScanOverlay.jsx            Parallel-chain progress indicator
-    TransferModal.jsx          Bridge / cross-chain swap flow
-    HistoryModal.jsx           Per-cell holding history + SVG chart
-    TokenManager.jsx           Hide/show, custom tokens
-    Toast.jsx                  Toast stack + provider
-    Icons.jsx                  Token + chain icon components
+    Matrix.tsx                 Grid + drag-and-drop cells
+    ScanOverlay.tsx            Parallel-chain progress indicator
+    TransferModal.tsx          Bridge / cross-chain swap flow
+    HistoryModal.tsx           Per-cell holding history + SVG chart
+    TokenManager.tsx           Hide/show, custom tokens
+    Toast.tsx                  Toast stack + provider
+    Icons.tsx                  Token + chain icon components
   lib/
-    chains.js                  15-chain registry
-    tokens.js                  Default catalog + CoinGecko id map
-    knownTokens.js             ERC-20 fallback contracts per chain
-    scanner.js                 scanAllChains / fetchErc20Balances / fetchPrices
-    icons.js                   Logo URL helpers
-    rpc.js                     Tiny JSON-RPC + bigint helpers
-    storage.js                 localStorage wrapper
-    format.js                  Number + address formatters
+    chains.ts                  15-chain registry
+    tokens.ts                  Default catalog + CoinGecko id map
+    knownTokens.ts             ERC-20 fallback contracts per chain
+    scanner.ts                 scanAllChains / fetchErc20Balances / fetchPrices
+    icons.ts                   Logo URL helpers
+    rpc.ts                     Tiny JSON-RPC + bigint helpers
+    storage.ts                 localStorage wrapper
+    format.ts                  Number + address formatters
+    types.ts                   Shared type definitions
   styles.css
 ```
 

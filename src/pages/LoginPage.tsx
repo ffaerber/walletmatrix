@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useWallet } from '../state/WalletContext.jsx';
-import { useToast } from '../components/Toast.jsx';
+import { useWallet } from '../state/WalletContext';
+import { useToast } from '../components/Toast';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -20,10 +20,11 @@ export default function LoginPage() {
       // Kick off the scan and navigate immediately so the overlay shows.
       navigate('/matrix');
       await connectMetaMask();
-    } catch (e) {
+    } catch (e: unknown) {
+      const err = e as { code?: number; message?: string };
       // Code 4001 = user rejected the request.
-      if (e?.code === 4001) push('Connection request was rejected.', 'info');
-      else push(e.message || 'Failed to connect wallet.', 'error');
+      if (err?.code === 4001) push('Connection request was rejected.', 'info');
+      else push(err?.message ?? 'Failed to connect wallet.', 'error');
       navigate('/');
     } finally {
       setBusy(false);

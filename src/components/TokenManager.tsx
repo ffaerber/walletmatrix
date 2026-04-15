@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react';
-import { useWallet } from '../state/WalletContext.jsx';
-import { TokenIcon } from './Icons.jsx';
-import { fmtAmount } from '../lib/format.js';
-import { useToast } from './Toast.jsx';
+import { useMemo, useState, type FormEvent } from 'react';
+import { useWallet } from '../state/WalletContext';
+import { TokenIcon } from './Icons';
+import { fmtAmount } from '../lib/format';
+import { useToast } from './Toast';
+import type { CustomTokenDraft, Token } from '../lib/types';
 
-export function TokenManager({ onClose }) {
+interface TokenManagerProps {
+  onClose: () => void;
+}
+
+export function TokenManager({ onClose }: TokenManagerProps) {
   const {
     tokens,
     balances,
@@ -21,17 +26,24 @@ export function TokenManager({ onClose }) {
     return tokens
       .map((t) => ({
         token: t,
-        total: Object.values(balances[t.id] || {}).reduce((a, b) => a + b, 0),
+        total: Object.values(balances[t.id] ?? {}).reduce((a, b) => a + b, 0),
       }))
       .sort((a, b) => b.total - a.total);
   }, [tokens, balances]);
 
-  const [form, setForm] = useState({ symbol: '', name: '', price: '', icon: '', address: '' });
+  const [form, setForm] = useState<CustomTokenDraft>({
+    symbol: '',
+    name: '',
+    price: '',
+    icon: '',
+    address: '',
+  });
 
-  function submit(e) {
+  function submit(e: FormEvent) {
     e.preventDefault();
     if (!form.symbol.trim() || !form.name.trim()) {
-      return push('Symbol and name are required.', 'error');
+      push('Symbol and name are required.', 'error');
+      return;
     }
     addCustomToken(form);
     push(`Added custom token ${form.symbol.toUpperCase()}.`, 'success');
@@ -51,37 +63,16 @@ export function TokenManager({ onClose }) {
         </header>
 
         <div className="token-manager-list">
-          {rows.map(({ token, total }) => {
-            const isHidden = hidden.has(token.id);
-            return (
-              <div
-                key={token.id}
-                className={`tm-row ${isHidden ? 'hidden' : ''} ${token.custom ? 'custom' : ''}`}
-              >
-                <TokenIcon token={token} size={32} />
-                <div className="tm-meta">
-                  <div className="sym">
-                    {token.symbol}
-                    {token.custom && <span className="badge custom">CUSTOM</span>}
-                    {isHidden && <span className="badge red">HIDDEN</span>}
-                  </div>
-                  <div className="muted small">{token.name}</div>
-                </div>
-                <div className="tm-total muted">{fmtAmount(total)}</div>
-                <button className="btn ghost small" onClick={() => toggleHide(token.id)}>
-                  {isHidden ? 'Show' : 'Hide'}
-                </button>
-                {token.custom && (
-                  <button
-                    className="btn ghost small danger"
-                    onClick={() => removeCustomToken(token.id)}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            );
-          })}
+          {rows.map(({ token, total }) => (
+            <TokenRow
+              key={token.id}
+              token={token}
+              total={total}
+              hidden={hidden.has(token.id)}
+              onToggle={toggleHide}
+              onRemove={removeCustomToken}
+            />
+          ))}
         </div>
 
         <form className="tm-form" onSubmit={submit}>
@@ -135,6 +126,41 @@ export function TokenManager({ onClose }) {
           <button type="submit" className="btn primary">Add token</button>
         </form>
       </div>
+    </div>
+  );
+}
+
+interface TokenRowProps {
+  token: Token;
+  total: number;
+  hidden: boolean;
+  onToggle: (tid: string) => void;
+  onRemove: (tid: string) => void;
+}
+
+function TokenRow({ token, total, hidden, onToggle, onRemove }: TokenRowProps) {
+  return (
+    <div className={`tm-row ${hidden ? 'hidden' : ''} ${token.custom ? 'custom' : ''}`}>
+      <TokenIcon token={token} size={32} />
+      <div className="tm-meta">
+        <div className="sym">
+          {token.symbol}
+          {token.custom && <span className="badge custom">CUSTOM</span>}
+          {hidden && <span className="badge red">HIDDEN</span>}
+        </div>
+        <div className="muted small">{token.name}</div>
+      </div>
+      <div className="tm-total muted">{fmtAmount(total)}</div>
+      <button className="btn ghost small" onClick={() => onToggle(token.id)}>
+        {hidden ? 'Show' : 'Hide'}
+      </button>
+      {token.custom ? (
+        <button className="btn ghost small danger" onClick={() => onRemove(token.id)}>
+          Remove
+        </button>
+      ) : (
+        <span />
+      )}
     </div>
   );
 }

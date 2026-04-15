@@ -1,0 +1,78 @@
+// Central type definitions shared across the app.
+
+export type ChainId =
+  | 'eth' | 'base' | 'arb' | 'op' | 'poly' | 'bnb' | 'gno' | 'avax'
+  | 'ftm' | 'zks' | 'zora' | 'celo' | 'scrl' | 'linea' | 'mntl';
+
+export interface Chain {
+  id: ChainId;
+  name: string;
+  short: string;
+  chainId: string;     // hex chain id for wallet_switchEthereumChain
+  color: string;
+  icon: string;
+  rpc: string;
+  alchemyNet: string | null;
+  twPath: string;
+  native: string;
+  logo: string;
+}
+
+export interface Token {
+  id: string;
+  symbol: string;
+  name: string;
+  icon: string;
+  bg: string;
+  price: number;
+  logoUrl?: string | null;
+  custom?: boolean;
+  address?: string | null;
+}
+
+// BALANCES[tokenId][chainId] = amount
+export type Balances = Record<string, Record<string, number>>;
+
+export interface PriceEntry {
+  price: number;
+  change: number;
+}
+export type Prices = Record<string, PriceEntry>;
+
+export interface KnownTokenEntry {
+  id: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  contract: string;
+}
+export type KnownTokens = Partial<Record<ChainId, KnownTokenEntry[]>>;
+
+export interface TransferIntent {
+  fromTid: string;
+  fromNid: ChainId;
+  fromAmount: number;
+  toTid: string;
+  toNid: ChainId;
+}
+
+export interface HistoryCell {
+  tid: string;
+  nid: ChainId;
+}
+
+export type ToastType = 'success' | 'error' | 'info';
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+
+export interface CustomTokenDraft {
+  symbol: string;
+  name: string;
+  price: string;
+  icon: string;
+  address: string;
+}

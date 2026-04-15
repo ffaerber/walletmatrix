@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useWallet } from '../state/WalletContext.jsx';
-import { ScanOverlay } from '../components/ScanOverlay.jsx';
-import { Matrix } from '../components/Matrix.jsx';
-import { TransferModal } from '../components/TransferModal.jsx';
-import { HistoryModal } from '../components/HistoryModal.jsx';
-import { TokenManager } from '../components/TokenManager.jsx';
-import { shortAddr } from '../lib/format.js';
+import { useWallet } from '../state/WalletContext';
+import { ScanOverlay } from '../components/ScanOverlay';
+import { Matrix, type MatrixSort, type MatrixView } from '../components/Matrix';
+import { TransferModal } from '../components/TransferModal';
+import { HistoryModal } from '../components/HistoryModal';
+import { TokenManager } from '../components/TokenManager';
+import { shortAddr } from '../lib/format';
+import type { ChainId, HistoryCell, TransferIntent } from '../lib/types';
 
 export default function MatrixPage() {
   const navigate = useNavigate();
   const { address, demo, scanning, scanProgress, disconnect } = useWallet();
-  const [view, setView] = useState('hasBalance'); // 'all' | 'hasBalance'
-  const [sort, setSort] = useState('value');       // 'value' | 'name'
-  const [transferIntent, setTransferIntent] = useState(null);
-  const [historyCell, setHistoryCell] = useState(null);
+  const [view, setView] = useState<MatrixView>('hasBalance');
+  const [sort, setSort] = useState<MatrixSort>('value');
+  const [transferIntent, setTransferIntent] = useState<TransferIntent | null>(null);
+  const [historyCell, setHistoryCell] = useState<HistoryCell | null>(null);
   const [showManager, setShowManager] = useState(false);
 
   // Without an address we bounce back to /#/ (login).
@@ -22,11 +23,11 @@ export default function MatrixPage() {
     if (!address && !scanning) navigate('/');
   }, [address, scanning, navigate]);
 
-  function handleDrop({ fromTid, fromNid, fromAmount, toTid, toNid }) {
-    setTransferIntent({ fromTid, fromNid, fromAmount, toTid, toNid });
+  function handleDrop(intent: TransferIntent) {
+    setTransferIntent(intent);
   }
 
-  function handleCell(tid, nid) {
+  function handleCell(tid: string, nid: ChainId) {
     setHistoryCell({ tid, nid });
   }
 
@@ -40,7 +41,10 @@ export default function MatrixPage() {
         </div>
         <div className="app-header-right">
           {address && <span className="addr muted">{shortAddr(address)}</span>}
-          <button className="btn ghost small" onClick={() => { disconnect(); navigate('/'); }}>
+          <button
+            className="btn ghost small"
+            onClick={() => { disconnect(); navigate('/'); }}
+          >
             Disconnect
           </button>
         </div>

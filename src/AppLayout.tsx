@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router';
-import { WalletProvider } from './state/WalletContext.jsx';
-import { ToastProvider, ToastStack } from './components/Toast.jsx';
+import { WalletProvider } from './state/WalletContext';
+import { ToastProvider, ToastStack } from './components/Toast';
 
 export function AppLayout() {
   return (

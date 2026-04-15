@@ -1,17 +1,31 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import type { Toast, ToastType } from '../lib/types';
 
-const ToastCtx = createContext(null);
+interface ToastContextValue {
+  toasts: Toast[];
+  push: (message: string, type?: ToastType) => string;
+  dismiss: (id: string) => void;
+}
 
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
+const ToastCtx = createContext<ToastContextValue | null>(null);
 
-  const push = useCallback((message, type = 'info') => {
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const push = useCallback((message: string, type: ToastType = 'info'): string => {
     const id = Math.random().toString(36).slice(2);
     setToasts((t) => [...t, { id, message, type }]);
     return id;
   }, []);
 
-  const dismiss = useCallback((id) => {
+  const dismiss = useCallback((id: string) => {
     setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
 
@@ -22,13 +36,18 @@ export function ToastProvider({ children }) {
   );
 }
 
-export function useToast() {
+export function useToast(): ToastContextValue {
   const ctx = useContext(ToastCtx);
   if (!ctx) throw new Error('useToast must be used inside ToastProvider');
   return ctx;
 }
 
-function ToastItem({ toast, onDismiss }) {
+interface ToastItemProps {
+  toast: Toast;
+  onDismiss: (id: string) => void;
+}
+
+function ToastItem({ toast, onDismiss }: ToastItemProps) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(toast.id), 3500);
     return () => clearTimeout(t);

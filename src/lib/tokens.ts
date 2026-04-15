@@ -1,6 +1,8 @@
 // Default token catalog and CoinGecko ID mapping for price lookups.
 
-export const DEFAULT_TOKENS = [
+import type { Balances, Token } from './types';
+
+export const DEFAULT_TOKENS: Token[] = [
   { id: 'eth',   symbol: 'ETH',   name: 'Ether',           icon: 'Ξ', bg: '#293241', price: 3200 },
   { id: 'usdc',  symbol: 'USDC',  name: 'USD Coin',        icon: '$', bg: '#0a2a4a', price: 1 },
   { id: 'usdt',  symbol: 'USDT',  name: 'Tether',          icon: '₮', bg: '#0f3d2e', price: 1 },
@@ -15,7 +17,7 @@ export const DEFAULT_TOKENS = [
 ];
 
 // Symbol → CoinGecko id for /simple/price lookups.
-export const CG_IDS = {
+export const CG_IDS: Record<string, string> = {
   ETH: 'ethereum',
   USDC: 'usd-coin',
   USDT: 'tether',
@@ -36,7 +38,7 @@ export const CG_IDS = {
 };
 
 // Seed demo balances used when the user clicks "Continue with demo wallet".
-export const DEMO_BALANCES = {
+export const DEMO_BALANCES: Balances = {
   eth:   { eth: 1.842, base: 0.231, arb: 0.512, op: 0.104, zks: 0.05,  linea: 0.03, scrl: 0.02, zora: 0.012 },
   usdc:  { eth: 850, base: 1200, arb: 400, op: 250, poly: 640, gno: 120, avax: 300 },
   usdt:  { eth: 500, bnb: 820, poly: 330, arb: 210, avax: 110 },
@@ -52,7 +54,7 @@ export const DEMO_BALANCES = {
 
 // Starter 24h change data for the UI — replaced by real CoinGecko
 // include_24hr_change values once the scanner runs.
-export const DEMO_CHANGES = {
+export const DEMO_CHANGES: Record<string, number> = {
   ETH: 2.1, USDC: 0.01, USDT: -0.02, DAI: 0.0,
   WBTC: 3.4, UNI: -1.2, LINK: 4.8, AAVE: 1.9,
   OP: 5.3, ARB: -0.8, MATIC: -2.4,

@@ -1,7 +1,7 @@
 import { createHashRouter, Navigate } from 'react-router';
-import { AppLayout } from './AppLayout.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import MatrixPage from './pages/MatrixPage.jsx';
+import { AppLayout } from './AppLayout';
+import LoginPage from './pages/LoginPage';
+import MatrixPage from './pages/MatrixPage';
 
 // HashRouter is required for Swarm/Bee static deploys: gateways serve the
 // exact path requested and don't rewrite unknown paths back to index.html, so

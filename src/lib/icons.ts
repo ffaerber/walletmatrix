@@ -1,12 +1,13 @@
-import { CHAINS_BY_ID } from './chains.js';
+import { CHAINS_BY_ID } from './chains';
+import type { ChainId, Token } from './types';
 
 // Token logos come from the Trust Wallet CDN keyed by checksummed contract.
 // For our canonical token ids we hard-code the Ethereum mainnet address since
 // the CDN mirrors the same logo for every chain copy of the token.
-const TW_ETH = (addr) =>
+const TW_ETH = (addr: string): string =>
   `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${addr}/logo.png`;
 
-export const TOKEN_LOGOS = {
+export const TOKEN_LOGOS: Record<string, string> = {
   eth:   TW_ETH('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'),
   usdc:  TW_ETH('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
   usdt:  TW_ETH('0xdAC17F958D2ee523a2206206994597C13D831ec7'),
@@ -20,12 +21,12 @@ export const TOKEN_LOGOS = {
   matic: TW_ETH('0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0'),
 };
 
-export function tokenLogoUrl(token) {
+export function tokenLogoUrl(token: Token | null | undefined): string | null {
   if (!token) return null;
   if (token.logoUrl) return token.logoUrl;
-  return TOKEN_LOGOS[token.id] || null;
+  return TOKEN_LOGOS[token.id] ?? null;
 }
 
-export function chainLogoUrl(chainId) {
-  return CHAINS_BY_ID[chainId]?.logo || null;
+export function chainLogoUrl(chainId: ChainId): string | null {
+  return CHAINS_BY_ID[chainId]?.logo ?? null;
 }
