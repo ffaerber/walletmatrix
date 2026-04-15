@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -13,6 +14,7 @@ import { scanAllChains, fetchErc20Balances } from '../lib/scanner';
 import { fetchPrices } from '../lib/scanner';
 import { KNOWN_TOKENS } from '../lib/knownTokens';
 import { storage } from '../lib/storage';
+import { DEMO_ADDRESS_PARAM, isAddress } from '../lib/format';
 import type {
   Balances,
   ChainId,
@@ -49,6 +51,10 @@ interface WalletContextValue extends WalletState {
   alchemyKey: string;
   connectDemo: () => void;
   connectMetaMask: () => Promise<string>;
+  // Reconciles state with the URL. Accepts a concrete 0x address or the
+  // literal `demo` sentinel. Idempotent — if the same address is already
+  // loaded, does nothing.
+  loadAddress: (addressOrDemo: string) => Promise<void>;
   disconnect: () => void;
   toggleHide: (tid: string) => void;
   hideZeroBalance: () => void;
@@ -84,6 +90,10 @@ function tokenSymbol(
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WalletState>(makeInitial);
+  // Tracks the last key we loaded for (lowercase address or 'demo') so we
+  // don't re-scan when MatrixPage re-renders or StrictMode double-invokes
+  // our effects.
+  const loadedKeyRef = useRef<string | null>(null);
 
   // Merge custom tokens into the visible catalog.
   const tokens = useMemo<Token[]>(
@@ -159,6 +169,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     setState((s) => ({ ...s, balances, prices, scanning: false }));
   }, []);
+
+  // Central URL-reconciling entry point. Callers (typically MatrixPage via
+  // useParams) pass whatever is in the :address slot. The `loadedKeyRef`
+  // guard makes this idempotent so StrictMode double-invokes, re-renders,
+  // and identical navigations don't trigger duplicate scans.
+  const loadAddress = useCallback(async (addressOrDemo: string): Promise<void> => {
+    if (addressOrDemo === DEMO_ADDRESS_PARAM) {
+      if (loadedKeyRef.current === 'demo') return;
+      loadedKeyRef.current = 'demo';
+      connectDemo();
+      return;
+    }
+    if (!isAddress(addressOrDemo)) return;
+    const key = addressOrDemo.toLowerCase();
+    if (loadedKeyRef.current === key) return;
+    loadedKeyRef.current = key;
+    await startScan(addressOrDemo);
+  }, [connectDemo, startScan]);
 
   const connectMetaMask = useCallback(async (): Promise<string> => {
     if (typeof window === 'undefined' || !window.ethereum) {
@@ -271,6 +299,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [tokens]);
 
   const disconnect = useCallback(() => {
+    loadedKeyRef.current = null;
     setState((s) => ({
       ...s,
       address: null,
@@ -287,6 +316,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       alchemyKey: ALCHEMY_KEY,
       connectDemo,
       connectMetaMask,
+      loadAddress,
       disconnect,
       toggleHide,
       hideZeroBalance,
@@ -300,6 +330,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       tokens,
       connectDemo,
       connectMetaMask,
+      loadAddress,
       disconnect,
       toggleHide,
       hideZeroBalance,

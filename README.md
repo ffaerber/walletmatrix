@@ -13,13 +13,20 @@ Swarm / Bee gateways serve content-addressed files under `/bzz/<ref>/<path>`. Un
 
 HashRouter keeps the whole route inside the URL fragment (`…/#/matrix`), which the gateway never sees, so deep links and refreshes work from any Bee node or ENS gateway.
 
-```js
+```ts
 // src/router.tsx
 createHashRouter([
-  { path: '/',       element: <LoginPage /> },
-  { path: 'matrix',  element: <MatrixPage /> },
+  { path: '/',                 element: <LoginPage /> },
+  { path: 'matrix/:address',   element: <MatrixPage /> },
 ]);
 ```
+
+The matrix route carries the wallet address as a URL parameter, so every view is a shareable permalink:
+
+- `…/#/matrix/0x1234…5678` — scan and display that wallet
+- `…/#/matrix/demo`        — seeded demo balances
+
+`MatrixPage` reads `useParams<{ address: string }>()`, validates it with `isAddress(…)`, and calls `WalletContext.loadAddress(…)` — which is idempotent (ref-guarded) so refreshes and React StrictMode double-invokes never trigger duplicate scans.
 
 The Vite config also sets `base: './'` so every asset reference is relative and the bundle works under any `/bzz/<hash>/` prefix without the upload hash being known in advance.
 
@@ -62,8 +69,21 @@ No backend. No keys required for a working demo.
 npm install
 npm run dev          # http://localhost:5173
 npm run typecheck    # tsc -b --noEmit
+npm test             # vitest run (42 tests)
+npm run test:watch   # vitest (watch mode)
 npm run build        # tsc -b && vite build -> dist/
 ```
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on pull requests:
+
+1. `npm ci`
+2. `npm run typecheck`
+3. `npm test -- --reporter=verbose`
+4. `npm run build`
+5. Verifies `dist/index.html` uses relative asset paths (Swarm/Bee compatibility).
+6. Uploads the `dist/` directory as a build artifact.
 
 Optional `.env`:
 

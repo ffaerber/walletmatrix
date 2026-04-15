@@ -1,4 +1,6 @@
-import { defineConfig } from 'vite';
+// Use `vitest/config`'s `defineConfig` (a superset of Vite's) so the `test`
+// option is type-checked alongside the regular Vite config.
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // Swarm/Bee deployment notes:
@@ -25,5 +27,15 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+  },
+  // Vitest config lives in the Vite config so everything shares the same
+  // transform pipeline (React JSX, TS, etc.).
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+    restoreMocks: true,
+    clearMocks: true,
   },
 });
