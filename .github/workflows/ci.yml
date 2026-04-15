@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Allow manual triggering from the Actions tab to re-run tests without
+  # pushing a commit.
+  workflow_dispatch:
 
 # Cancel in-progress runs when a new commit is pushed to the same PR/branch.
 concurrency:
