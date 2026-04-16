@@ -8,20 +8,12 @@ import type { ChainId, Token } from './types';
 
 export const NATIVE_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-// A token is native on a chain when its symbol matches the chain's native
-// symbol. xDAI on Gnosis is a special case — bridges treat DAI as the
-// native token there.
+// A token is native on a chain when its symbol matches the chain's
+// nativeCurrency.symbol from the eip155 registry. No special cases.
 export function isNativeOnChain(token: Token, chainId: ChainId): boolean {
   const chain = CHAINS_BY_ID[chainId];
   if (!chain) return false;
-  const sym = token.symbol.toUpperCase();
-  const nat = chain.native.toUpperCase();
-  if (sym === nat) return true;
-  // POL/MATIC rebrand — both symbols refer to the same native asset.
-  if ((sym === 'MATIC' && nat === 'POL') || (sym === 'POL' && nat === 'MATIC')) return true;
-  // DAI is the native asset on Gnosis (xDAI chain).
-  if (nat === 'XDAI' && sym === 'DAI') return true;
-  return false;
+  return token.symbol.toUpperCase() === chain.native.toUpperCase();
 }
 
 export function resolveTokenAddress(token: Token, chainId: ChainId): string | null {
