@@ -20,13 +20,13 @@ export function TokenIcon({ token, size = 28 }: TokenIconProps) {
   };
   if (token && url && !failed) {
     return (
-      <span className="token-icon" style={style}>
-        <img src={url} alt={token.symbol} onError={() => setFailed(true)} />
+      <span className="inline-flex items-center justify-center text-white font-bold font-sans overflow-hidden shrink-0" style={style}>
+        <img className="w-full h-full object-cover" src={url} alt={token.symbol} onError={() => setFailed(true)} />
       </span>
     );
   }
   return (
-    <span className="token-icon fallback" style={style}>
+    <span className="inline-flex items-center justify-center text-white font-bold font-sans overflow-hidden shrink-0" style={style}>
       {token?.icon ?? token?.symbol?.[0] ?? '?'}
     </span>
   );
@@ -51,13 +51,13 @@ export function ChainIcon({ chainId, size = 22 }: ChainIconProps) {
   const url = chainLogoUrl(chainId);
   if (url && !failed) {
     return (
-      <span className="chain-icon" style={style}>
-        <img src={url} alt={chain.name} onError={() => setFailed(true)} />
+      <span className="inline-flex items-center justify-center text-white font-bold font-sans overflow-hidden shrink-0" style={style}>
+        <img className="w-full h-full object-cover" src={url} alt={chain.name} onError={() => setFailed(true)} />
       </span>
     );
   }
   return (
-    <span className="chain-icon fallback" style={style}>
+    <span className="inline-flex items-center justify-center text-white font-bold font-sans overflow-hidden shrink-0" style={style}>
       {chain.icon}
     </span>
   );

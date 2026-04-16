@@ -42,18 +42,22 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
-interface ToastItemProps {
-  toast: Toast;
-  onDismiss: (id: string) => void;
-}
+const BORDER_COLOR: Record<ToastType, string> = {
+  success: 'border-l-green',
+  error: 'border-l-red',
+  info: 'border-l-accent',
+};
 
-function ToastItem({ toast, onDismiss }: ToastItemProps) {
+function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(toast.id), 3500);
     return () => clearTimeout(t);
   }, [toast.id, onDismiss]);
   return (
-    <div className={`toast ${toast.type}`} onClick={() => onDismiss(toast.id)}>
+    <div
+      className={`min-w-[220px] max-w-[360px] bg-surface border border-border border-l-[3px] ${BORDER_COLOR[toast.type]} py-3 px-4 rounded-xl cursor-pointer text-[13px] animate-toast-in`}
+      onClick={() => onDismiss(toast.id)}
+    >
       {toast.message}
     </div>
   );
@@ -62,7 +66,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 export function ToastStack() {
   const { toasts, dismiss } = useToast();
   return (
-    <div className="toast-stack">
+    <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-90">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
       ))}

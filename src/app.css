@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* ── Custom theme ─────────────────────────────────────────────────────────── */
+@theme {
+  --color-bg: #080b0f;
+  --color-surface: #0e1318;
+  --color-surface-2: #121820;
+  --color-border: #1a2230;
+  --color-text: #e8edf5;
+  --color-muted: #4a5568;
+  --color-accent: #00d4ff;
+  --color-green: #00e5a0;
+  --color-red: #ff4d6d;
+  --color-yellow: #ffd166;
+  --color-orange: #ff9500;
+
+  --font-sans: 'Syne', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --animate-pulse-scan: pulse-scan 1s ease-in-out infinite;
+  --animate-pulse-dot: pulse-dot 1.1s ease-in-out infinite;
+  --animate-toast-in: toast-in 0.2s ease-out;
+}
+
+@keyframes pulse-scan {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.2); }
+}
+@keyframes toast-in {
+  from { transform: translateX(12px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Base resets ──────────────────────────────────────────────────────────── */
+@layer base {
+  * { box-sizing: border-box; }
+  html, body, #root {
+    margin: 0; padding: 0; min-height: 100vh;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font-family: inherit; color: inherit; }
+  a { color: var(--color-accent); }
+}

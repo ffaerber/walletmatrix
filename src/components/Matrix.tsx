@@ -2,7 +2,6 @@ import {
   useCallback,
   useMemo,
   useState,
-  type CSSProperties,
   type DragEvent,
 } from 'react';
 import { useWallet } from '../state/WalletContext';
@@ -38,14 +37,12 @@ interface Row {
   totalUsd: number;
 }
 
-// Drag context lifted to the Matrix level so every cell can check
-// whether it's a valid drop target during dragover.
 interface DragCtx {
   tokenId: string;
   chainId: ChainId;
   amount: number;
   symbol: string;
-  validTargets: Set<string>; // chain IDs where this token can be bridged
+  validTargets: Set<string>;
 }
 
 export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
@@ -83,7 +80,6 @@ export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
 
   const grandTotal = rows.reduce((sum, r) => sum + r.totalUsd, 0);
 
-  // Called by cells when a drag starts — computes valid targets once.
   const onDragStart = useCallback((tokenId: string, chainId: ChainId, amount: number) => {
     const token = tokens.find((t) => t.id === tokenId);
     const symbol = token?.symbol ?? tokenId.toUpperCase();
@@ -95,26 +91,23 @@ export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
   const onDragEnd = useCallback(() => setDragCtx(null), []);
 
   return (
-    <div className="matrix-wrap">
-      <table className="matrix">
+    <div className="px-6 pb-20 pt-4 overflow-x-auto">
+      <table className="border-separate border-spacing-1 w-full min-w-[960px] font-mono text-[13px]">
         <thead>
           <tr>
-            <th className="corner">Token</th>
-            {activeChains.map((c) => {
-              const style = { '--c': c.color } as CSSProperties;
-              return (
-                <th key={c.id} className="chain-head" style={style}>
-                  <div className="chain-head-inner">
-                    <ChainIcon chainId={c.id} size={22} />
-                    <div>
-                      <div className="chain-name">{c.name}</div>
-                      <div className="chain-total">{fmtUsd(columnTotals[c.id] ?? 0)}</div>
-                    </div>
+            <th className="text-left font-sans font-extrabold tracking-widest uppercase text-[11px] text-muted bg-transparent border-0 p-2.5">Token</th>
+            {activeChains.map((c) => (
+              <th key={c.id} className="min-w-[140px] bg-gradient-to-b from-surface to-surface-2 border border-border rounded-xl p-2.5" style={{ borderTopColor: c.color, borderTopWidth: 2 }}>
+                <div className="flex items-center gap-2">
+                  <ChainIcon chainId={c.id} size={22} />
+                  <div>
+                    <div className="font-sans font-semibold text-text">{c.name}</div>
+                    <div className="font-mono text-muted text-[11px]">{fmtUsd(columnTotals[c.id] ?? 0)}</div>
                   </div>
-                </th>
-              );
-            })}
-            <th className="totals">Total</th>
+                </div>
+              </th>
+            ))}
+            <th className="min-w-[150px] bg-surface-2 border border-border rounded-xl p-2.5 text-right">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -134,16 +127,14 @@ export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
         </tbody>
         <tfoot>
           <tr>
-            <td className="corner">
-              <span className="muted">Grand total</span>
-            </td>
-            <td colSpan={activeChains.length}></td>
-            <td className="totals grand">{fmtUsd(grandTotal)}</td>
+            <td className="text-left p-2.5"><span className="text-muted">Grand total</span></td>
+            <td colSpan={activeChains.length} />
+            <td className="min-w-[150px] bg-surface-2 border border-border rounded-xl p-2.5 text-right font-mono font-bold text-yellow text-lg">{fmtUsd(grandTotal)}</td>
           </tr>
         </tfoot>
       </table>
       {!rows.length && (
-        <div className="empty-state">
+        <div className="py-12 text-center text-muted italic">
           No tokens to display. Try switching the view filter or connect a different wallet.
         </div>
       )}
@@ -167,15 +158,15 @@ function MatrixRow({ row, activeChains, maxUsd, dragCtx, onCell, onDrop, onDragS
   const barPct = Math.round((totalUsd / maxUsd) * 100);
   return (
     <tr>
-      <th className="token-head">
-        <div className="token-head-inner">
+      <th className="text-left min-w-[200px] bg-surface-2 border border-border rounded-xl p-2.5">
+        <div className="flex items-center gap-2.5">
           <TokenIcon token={token} size={32} />
           <div>
-            <div className="sym">
+            <div className="font-sans font-bold text-sm flex items-center">
               {token.symbol}
-              {token.custom && <span className="badge custom">CUSTOM</span>}
+              {token.custom && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green/15 text-green ml-1.5">CUSTOM</span>}
             </div>
-            <div className="muted small">{token.name}</div>
+            <div className="text-muted text-xs">{token.name}</div>
           </div>
         </div>
       </th>
@@ -195,11 +186,13 @@ function MatrixRow({ row, activeChains, maxUsd, dragCtx, onCell, onDrop, onDragS
           onDragEnd={onDragEnd}
         />
       ))}
-      <td className="totals">
-        <div className="total-stack">
-          <div className="amt">{fmtAmount(totalAmount)}</div>
-          <div className="usd">{fmtUsd(totalUsd)}</div>
-          <div className="bar"><span style={{ width: `${barPct}%` }} /></div>
+      <td className="min-w-[150px] bg-surface-2 border border-border rounded-xl p-2.5 text-right">
+        <div className="flex flex-col gap-0.5 items-end">
+          <div className="font-bold">{fmtAmount(totalAmount)}</div>
+          <div className="text-yellow text-xs">{fmtUsd(totalUsd)}</div>
+          <div className="h-1 w-full bg-border rounded-sm overflow-hidden">
+            <span className="block h-full bg-gradient-to-r from-accent to-green" style={{ width: `${barPct}%` }} />
+          </div>
         </div>
       </td>
     </tr>
@@ -229,21 +222,17 @@ function MatrixCell({
   const isHigh = usd >= 500;
   const isEmpty = amount <= 0;
 
-  // During a drag, determine if this cell is a valid target.
   const isSource = dragCtx?.chainId === chainId && dragCtx?.tokenId === tokenId;
   const isValidTarget = dragCtx && !isSource && dragCtx.validTargets.has(chainId);
   const isInvalidTarget = dragCtx && !isSource && !dragCtx.validTargets.has(chainId);
 
   function handleDragStart(e: DragEvent<HTMLTableCellElement>) {
-    if (isEmpty) {
-      e.preventDefault();
-      return;
-    }
+    if (isEmpty) { e.preventDefault(); return; }
     const payload = { tokenId, chainId, amount };
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'move';
     const ghost = document.createElement('div');
-    ghost.className = 'drag-ghost';
+    ghost.className = 'fixed -top-[1000px] -left-[1000px] py-1.5 px-3 bg-surface border border-accent rounded-lg text-text font-mono text-xs pointer-events-none';
     ghost.textContent = `${fmtAmount(amount)} ${tokenId.toUpperCase()} · ${CHAINS_BY_ID[chainId]?.short ?? chainId}`;
     document.body.appendChild(ghost);
     e.dataTransfer.setDragImage(ghost, 20, 16);
@@ -252,48 +241,39 @@ function MatrixCell({
   }
 
   function handleDragOver(e: DragEvent<HTMLTableCellElement>) {
-    if (isInvalidTarget) return; // Don't allow drop on invalid targets.
+    if (isInvalidTarget) return;
     e.preventDefault();
     setHovering(true);
   }
 
-  function handleDragLeave() {
-    setHovering(false);
-  }
+  function handleDragLeave() { setHovering(false); }
 
   function handleDrop(e: DragEvent<HTMLTableCellElement>) {
     e.preventDefault();
     setHovering(false);
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json')) as {
-        tokenId: string;
-        chainId: ChainId;
-        amount: number;
+        tokenId: string; chainId: ChainId; amount: number;
       } | null;
       if (!data || data.chainId === chainId) return;
-      onDrop({
-        fromTid: data.tokenId,
-        fromNid: data.chainId,
-        fromAmount: data.amount,
-        toTid: tokenId,
-        toNid: chainId,
-      });
-    } catch {
-      /* no-op */
-    }
+      onDrop({ fromTid: data.tokenId, fromNid: data.chainId, fromAmount: data.amount, toTid: tokenId, toNid: chainId });
+    } catch { /* no-op */ }
   }
+
+  const cls = [
+    'text-right min-w-[130px] bg-surface border border-border rounded-xl p-2.5 transition-all duration-100',
+    isEmpty ? 'cursor-default text-muted !bg-transparent' : 'cursor-grab active:cursor-grabbing',
+    isNative && !isEmpty ? 'bg-white/4 border-white/12' : '',
+    isNative && isEmpty ? 'bg-white/2' : '',
+    isHigh ? 'bg-green/8 border-green/35' : '',
+    hovering && isValidTarget ? 'border-green shadow-[0_0_0_1px_var(--color-green)_inset]' : '',
+    isInvalidTarget ? 'opacity-30 cursor-not-allowed' : '',
+    isValidTarget && !hovering ? 'border-green/25' : '',
+  ].join(' ');
 
   return (
     <td
-      className={[
-        'cell',
-        isEmpty ? 'empty' : '',
-        isHigh ? 'high-balance' : '',
-        isNative ? 'native' : '',
-        hovering && isValidTarget ? 'drop-ok' : '',
-        isInvalidTarget ? 'drop-bad' : '',
-        isValidTarget && !hovering ? 'drop-hint' : '',
-      ].join(' ')}
+      className={cls}
       draggable={!isEmpty}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -303,12 +283,12 @@ function MatrixCell({
       onClick={() => !isEmpty && onCell(tokenId, chainId)}
     >
       {isEmpty ? (
-        <span className="dot">·</span>
+        <span className="text-lg opacity-30">·</span>
       ) : (
-        <div className="cell-inner">
-          <div className="cell-amt">{fmtAmount(amount)}</div>
-          <div className="cell-usd">{fmtUsd(usd)}</div>
-          <div className={`cell-chg ${change >= 0 ? 'up' : 'down'}`}>
+        <div className="flex flex-col gap-0.5 items-end">
+          <div className="font-bold">{fmtAmount(amount)}</div>
+          <div className="text-muted text-[11px]">{fmtUsd(usd)}</div>
+          <div className={`text-[11px] ${change >= 0 ? 'text-green' : 'text-red'}`}>
             {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
           </div>
         </div>

@@ -4,7 +4,7 @@ import { RouterProvider } from 'react-router';
 import { initChains } from './lib/chains';
 import { preloadLifiTokens } from './lib/lifiTokens';
 import { router } from './router';
-import './styles.css';
+import './app.css';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Root element #root not found');

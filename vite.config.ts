@@ -2,6 +2,7 @@
 // option is type-checked alongside the regular Vite config.
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 // Swarm/Bee deployment notes:
 // - base: './' produces relative asset paths so the bundle works from any
@@ -10,7 +11,7 @@ import react from '@vitejs/plugin-react';
 //   deep links survive Bee gateways that don't rewrite 404s to index.html.
 // - assetsInlineLimit kept small so Bee caches each asset separately.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   base: './',
   build: {
     outDir: 'dist',
