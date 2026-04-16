@@ -21,8 +21,20 @@ type TokenCache = Record<string, Record<string, { address: string; decimals: num
 let cache: TokenCache | null = null;
 let pending: Promise<TokenCache> | null = null;
 
+// Li.Fi rejects the whole /tokens request with 400 if any chain id is
+// unsupported. Query /chains first and intersect with our chain list so a
+// future unsupported chain (e.g. Fantom/250, Zora/7777777) doesn't wedge it.
+async function fetchSupportedChainIds(): Promise<Set<number>> {
+  const res = await fetch(`${LIFI_BASE}/chains?chainTypes=EVM`);
+  if (!res.ok) throw new Error(`Li.Fi chains ${res.status}`);
+  const data = (await res.json()) as { chains: Array<{ id: number }> };
+  return new Set(data.chains.map((c) => c.id));
+}
+
 async function loadTokens(): Promise<TokenCache> {
-  const chains = CHAIN_IDS.join(',');
+  const supported = await fetchSupportedChainIds();
+  const chains = CHAIN_IDS.filter((id) => supported.has(id)).join(',');
+  if (!chains) return {};
   const res = await fetch(`${LIFI_BASE}/tokens?chains=${chains}`);
   if (!res.ok) throw new Error(`Li.Fi tokens ${res.status}`);
   const data = (await res.json()) as { tokens: Record<string, LifiTokenEntry[]> };
