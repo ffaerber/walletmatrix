@@ -2,10 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Token } from './types';
 import type { LifiQuote } from './lifi';
 
-// Mock the whole dependency graph executeQuote sits on top of so we can
-// assert the stage sequence without touching real RPCs, MetaMask, or the
-// Li.Fi network. Because vite.config.ts sets restoreMocks: true, we apply
-// the default return values in beforeEach rather than in the factory.
 vi.mock('./wallet', () => ({
   switchToChain: vi.fn(),
   sendTransaction: vi.fn(),
@@ -52,7 +48,6 @@ describe('executeQuote', () => {
     vi.mocked(waitForReceipt).mockResolvedValue(undefined);
     vi.mocked(readAllowance).mockResolvedValue(0n);
     vi.mocked(encodeApprove).mockReturnValue('0x095ea7b300');
-    // Short-circuit the polling loop with a single DONE response.
     vi.mocked(fetchLifiStatus).mockResolvedValue({
       status: 'DONE',
       receiving: { txHash: '0xRECV' },
@@ -63,14 +58,13 @@ describe('executeQuote', () => {
     const stages: TxStage['kind'][] = [];
     const onStage = (s: TxStage) => stages.push(s.kind);
 
-    // Native source (ETH) -> no approve phase.
     await executeQuote(
       {
         address: '0xuser',
         fromToken: ETH,
         toToken: ETH,
-        fromChainId: 'eth',
-        toChainId: 'base',
+        fromChainId: '1',
+        toChainId: '8453',
         amountHuman: '0.1',
       },
       makeQuote(),
@@ -78,12 +72,10 @@ describe('executeQuote', () => {
       { pollInitialDelayMs: 0 },
     );
 
-    // 'pending' appears twice: once when we submit the tx, once after the
-    // status poll lands with a terminal substatus.
     const unique = Array.from(new Set(stages));
     expect(unique).toEqual(['switching', 'signing', 'pending', 'done']);
-    expect(switchToChain).toHaveBeenCalledWith('eth');
-    expect(readAllowance).not.toHaveBeenCalled(); // native skips allowance
+    expect(switchToChain).toHaveBeenCalledWith('1');
+    expect(readAllowance).not.toHaveBeenCalled();
   });
 
   it('inserts an approving stage when source is ERC-20 and allowance is insufficient', async () => {
@@ -94,8 +86,8 @@ describe('executeQuote', () => {
         address: '0xuser',
         fromToken: USDC,
         toToken: USDC,
-        fromChainId: 'eth',
-        toChainId: 'base',
+        fromChainId: '1',
+        toChainId: '8453',
         amountHuman: '100',
       },
       makeQuote(),
@@ -107,7 +99,6 @@ describe('executeQuote', () => {
     expect(kinds).toContain('approving');
     expect(kinds.indexOf('approving')).toBeLessThan(kinds.indexOf('signing'));
     expect(readAllowance).toHaveBeenCalled();
-    // First tx is the approve, second is the swap.
     expect(sendTransaction).toHaveBeenCalledTimes(2);
   });
 
@@ -124,8 +115,8 @@ describe('executeQuote', () => {
           address: '0xuser',
           fromToken: ETH,
           toToken: ETH,
-          fromChainId: 'eth',
-          toChainId: 'base',
+          fromChainId: '1',
+          toChainId: '8453',
           amountHuman: '0.1',
         },
         makeQuote(),

@@ -15,8 +15,12 @@ function isNativeOnChain(token: Token, chainId: ChainId): boolean {
   const chain = CHAINS_BY_ID[chainId];
   if (!chain) return false;
   const sym = token.symbol.toUpperCase();
-  if (sym === chain.native.toUpperCase()) return true;
-  if (chain.native === 'xDAI' && sym === 'DAI') return true;
+  const nat = chain.native.toUpperCase();
+  if (sym === nat) return true;
+  // POL/MATIC rebrand — both symbols refer to the same native asset.
+  if ((sym === 'MATIC' && nat === 'POL') || (sym === 'POL' && nat === 'MATIC')) return true;
+  // DAI is the native asset on Gnosis (xDAI chain).
+  if (nat === 'XDAI' && sym === 'DAI') return true;
   return false;
 }
 

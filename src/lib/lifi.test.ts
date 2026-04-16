@@ -38,8 +38,8 @@ describe('fetchLifiQuote', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const quote = await fetchLifiQuote({
-      fromChain: 'eth',
-      toChain: 'base',
+      fromChain: '1',
+      toChain: '8453',
       fromToken: '0x0',
       toToken: '0x0',
       fromAmountWei: 1_000_000n,
@@ -70,8 +70,8 @@ describe('fetchLifiQuote', () => {
     );
     await expect(
       fetchLifiQuote({
-        fromChain: 'eth',
-        toChain: 'base',
+        fromChain: '1',
+        toChain: '8453',
         fromToken: '0x0',
         toToken: '0x0',
         fromAmountWei: 1n,
@@ -96,8 +96,8 @@ describe('fetchLifiStatus', () => {
     const out = await fetchLifiStatus({
       txHash: '0xabc',
       tool: 'across',
-      fromChain: 'eth',
-      toChain: 'base',
+      fromChain: '1',
+      toChain: '8453',
     });
 
     expect(out.status).toBe('DONE');

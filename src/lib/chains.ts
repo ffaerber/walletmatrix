@@ -19,6 +19,7 @@ export const CHAIN_IDS: number[] = [
 interface ChainOverride {
   color?: string;
   short?: string;        // Display abbreviation (auto-derived if omitted)
+  native?: string;       // Fallback native currency symbol (used when registry fetch fails)
   alchemyNet?: string;   // Alchemy subdomain for alchemy_getTokensForOwner
   twPath?: string;       // Trust Wallet CDN slug for chain logo
 }
@@ -26,16 +27,16 @@ interface ChainOverride {
 const OVERRIDES: Record<number, ChainOverride> = {
   1:        { color: '#627eea', alchemyNet: 'eth-mainnet',     twPath: 'ethereum' },
   10:       { color: '#ff0420', alchemyNet: 'opt-mainnet',     twPath: 'optimism',    short: 'OP' },
-  56:       { color: '#f0b90b',                                twPath: 'smartchain',  short: 'BNB' },
-  100:      { color: '#48a9a6',                                twPath: 'xdai',        short: 'GNO' },
-  137:      { color: '#8247e5', alchemyNet: 'polygon-mainnet', twPath: 'polygon',     short: 'POLY' },
-  250:      { color: '#1969ff',                                twPath: 'fantom',      short: 'FTM' },
+  56:       { color: '#f0b90b',                                twPath: 'smartchain',  short: 'BNB',  native: 'BNB' },
+  100:      { color: '#48a9a6',                                twPath: 'xdai',        short: 'GNO',  native: 'xDAI' },
+  137:      { color: '#8247e5', alchemyNet: 'polygon-mainnet', twPath: 'polygon',     short: 'POLY', native: 'MATIC' },
+  250:      { color: '#1969ff',                                twPath: 'fantom',      short: 'FTM',  native: 'FTM' },
   324:      { color: '#8c8dfc', alchemyNet: 'zksync-mainnet',  twPath: 'zksync',      short: 'ZKS' },
-  5000:     { color: '#008574',                                twPath: 'mantle',      short: 'MNTL' },
+  5000:     { color: '#008574',                                twPath: 'mantle',      short: 'MNTL', native: 'MNT' },
   8453:     { color: '#0052ff', alchemyNet: 'base-mainnet',    twPath: 'base' },
   42161:    { color: '#28a0f0', alchemyNet: 'arb-mainnet',     twPath: 'arbitrum',    short: 'ARB' },
-  42220:    { color: '#35d07f', alchemyNet: 'celo-mainnet',    twPath: 'celo' },
-  43114:    { color: '#e84142', alchemyNet: 'avax-mainnet',    twPath: 'avalanchec',  short: 'AVAX' },
+  42220:    { color: '#35d07f', alchemyNet: 'celo-mainnet',    twPath: 'celo',        native: 'CELO' },
+  43114:    { color: '#e84142', alchemyNet: 'avax-mainnet',    twPath: 'avalanchec',  short: 'AVAX', native: 'AVAX' },
   59144:    { color: '#61dfff', alchemyNet: 'linea-mainnet',   twPath: 'linea' },
   534352:   { color: '#ffeeda', alchemyNet: 'scroll-mainnet',  twPath: 'scroll',      short: 'SCRL' },
   7777777:  { color: '#000000', alchemyNet: 'zora-mainnet',    twPath: 'zora' },
@@ -115,7 +116,7 @@ function buildChain(numId: number, entry: RegistryEntry | null): Chain {
       rpc: fallback,
       alchemyNet: ov.alchemyNet ?? null,
       twPath: ov.twPath ?? '',
-      native: 'ETH',
+      native: ov.native ?? 'ETH',
       logo: ov.twPath ? twLogo(ov.twPath) : '',
     };
   }

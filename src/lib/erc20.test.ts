@@ -41,7 +41,7 @@ describe('readAllowance', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const out = await readAllowance(
-      'eth',
+      '1',
       '0x3333333333333333333333333333333333333333',
       '0x1111111111111111111111111111111111111111',
       '0x2222222222222222222222222222222222222222',
@@ -64,7 +64,7 @@ describe('readAllowance', () => {
         }),
       ),
     );
-    const out = await readAllowance('eth', '0x33...', '0x11...', '0x22...');
+    const out = await readAllowance('1', '0x33...', '0x11...', '0x22...');
     expect(out).toBe(0n);
   });
 });
