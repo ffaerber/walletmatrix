@@ -226,9 +226,35 @@ a { color: var(--accent); }
   transition: opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .chain-pill.scanned { opacity: 1; border-color: var(--muted); }
+.chain-pill.active {
+  opacity: 1;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset, 0 0 12px rgba(99,102,241,0.15);
+  animation: pulse-scan 1s ease-in-out infinite;
+}
+@keyframes pulse-scan {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 .chain-pill.hit {
   border-color: var(--green);
   box-shadow: 0 0 0 1px var(--green) inset, 0 0 20px rgba(0,229,160,0.1);
+}
+.chain-pill.testnet { border-style: dashed; }
+.testnet-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--muted);
+  color: var(--bg);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 16px;
+}
+.ens-resolving {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 /* ---------- Shared icons ---------- */

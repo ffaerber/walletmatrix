@@ -27,7 +27,9 @@ export default function MatrixPage() {
     address: walletAddress,
     demo,
     scanning,
+    activeChain,
     scanProgress,
+    totalChains,
     loadAddress,
     refreshBalances,
     disconnect,
@@ -195,7 +197,7 @@ export default function MatrixPage() {
 
       <Matrix view={view} sort={sort} onCell={handleCell} onDrop={handleDrop} />
 
-      {scanning && <ScanOverlay progress={scanProgress} />}
+      {scanning && <ScanOverlay progress={scanProgress} activeChain={activeChain} totalChains={totalChains} />}
       {transferIntent && (
         <TransferModal intent={transferIntent} onClose={() => setTransferIntent(null)} />
       )}

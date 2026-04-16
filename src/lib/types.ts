@@ -2,7 +2,8 @@
 
 export type ChainId =
   | 'eth' | 'base' | 'arb' | 'op' | 'poly' | 'bnb' | 'gno' | 'avax'
-  | 'ftm' | 'zks' | 'zora' | 'celo' | 'scrl' | 'linea' | 'mntl';
+  | 'ftm' | 'zks' | 'zora' | 'celo' | 'scrl' | 'linea' | 'mntl'
+  | 'sep' | 'hol' | 'bsep' | 'asep';
 
 export interface Chain {
   id: ChainId;
@@ -16,6 +17,7 @@ export interface Chain {
   twPath: string;
   native: string;
   logo: string;
+  testnet?: boolean;
 }
 
 export interface Token {

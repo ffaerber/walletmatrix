@@ -10,8 +10,7 @@ import {
 } from 'react';
 import { DEFAULT_TOKENS, DEMO_BALANCES, DEMO_CHANGES } from '../lib/tokens';
 import { CHAINS } from '../lib/chains';
-import { scanAllChains, fetchErc20Balances } from '../lib/scanner';
-import { fetchPrices } from '../lib/scanner';
+import { scanChainsSequential, fetchPrices } from '../lib/scanner';
 import { KNOWN_TOKENS } from '../lib/knownTokens';
 import { storage } from '../lib/storage';
 import { DEMO_ADDRESS_PARAM, isAddress } from '../lib/format';
@@ -36,6 +35,8 @@ interface WalletState {
   address: string | null;
   demo: boolean;
   scanning: boolean;
+  // Chain currently being scanned (sequential scan).
+  activeChain: ChainId | null;
   scanProgress: Partial<Record<ChainId, number>>;
   balances: Balances;
   prices: Prices;
@@ -63,6 +64,8 @@ interface WalletContextValue extends WalletState {
   realTxEnabled: boolean;
   connectDemo: () => void;
   connectMetaMask: () => Promise<string>;
+  // Total number of chains being scanned (for progress display).
+  totalChains: number;
   // Reconciles state with the URL. Accepts a concrete 0x address or the
   // literal `demo` sentinel. Idempotent — if the same address is already
   // loaded, does nothing. Will use cached balances if present.
@@ -89,6 +92,7 @@ function makeInitial(): WalletState {
     address: null,
     demo: false,
     scanning: false,
+    activeChain: null,
     scanProgress: {},
     balances: {},
     prices: {},
@@ -141,61 +145,81 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startScan = useCallback(async (address: string) => {
-    setState((s) => ({ ...s, address, demo: false, scanning: true, scanProgress: {} }));
+    setState((s) => ({ ...s, address, demo: false, scanning: true, activeChain: null, scanProgress: {} }));
 
-    // 1. Native balances on every chain, in parallel.
-    const native = await scanAllChains(address, (chainId, amount) => {
-      setState((s) => ({ ...s, scanProgress: { ...s.scanProgress, [chainId]: amount } }));
-    });
+    // Scan chains sequentially, ordered by numeric chain ID (Ethereum first).
+    const results = await scanChainsSequential(
+      address,
+      ALCHEMY_KEY,
+      KNOWN_TOKENS,
+      (chainId) => {
+        setState((s) => ({ ...s, activeChain: chainId }));
+      },
+      (result) => {
+        setState((s) => ({
+          ...s,
+          scanProgress: { ...s.scanProgress, [result.chainId]: result.native },
+        }));
+      },
+    );
 
-    // 2. ERC-20 discovery (Alchemy if keyed, else known-contract probe).
-    const erc = await fetchErc20Balances(address, ALCHEMY_KEY, KNOWN_TOKENS);
-
-    // 3. Merge into the token/balance shape the matrix expects.
+    // Merge into the token/balance shape the matrix expects.
     const balances: Balances = {};
     DEFAULT_TOKENS.forEach((t) => {
       balances[t.id] = {};
     });
 
-    // Native assignments by chain.
-    CHAINS.forEach((c) => {
-      const amt = native[c.id] ?? 0;
-      if (amt <= 0) return;
-      if (c.native === 'ETH') balances.eth[c.id] = amt;
-      else if (c.native === 'MATIC') balances.matic[c.id] = amt;
-      else {
-        // Non-ETH/MATIC natives (BNB, AVAX, FTM, CELO, MNT, xDAI) surface as
-        // ad-hoc tokens keyed off the chain's native symbol.
-        const id = c.native.toLowerCase();
-        balances[id] ??= {};
-        balances[id][c.id] = amt;
-      }
-    });
+    // Track which chains have any value (native or ERC-20).
+    const chainsWithValue = new Set<ChainId>();
 
-    // ERC-20 assignments.
-    (Object.entries(erc) as [ChainId, typeof erc[ChainId]][]).forEach(([chainId, list]) => {
-      (list ?? []).forEach((t) => {
+    results.forEach((r) => {
+      const chain = CHAINS.find((c) => c.id === r.chainId);
+      if (!chain) return;
+
+      // Native balance assignment.
+      if (r.native > 0) {
+        chainsWithValue.add(r.chainId);
+        if (chain.native === 'ETH') balances.eth[r.chainId] = r.native;
+        else if (chain.native === 'MATIC') balances.matic[r.chainId] = r.native;
+        else {
+          const id = chain.native.toLowerCase();
+          balances[id] ??= {};
+          balances[id][r.chainId] = r.native;
+        }
+      }
+
+      // ERC-20 assignments.
+      r.erc20.forEach((t) => {
         const id = (t.id ?? t.symbol ?? '').toLowerCase();
         if (!id) return;
         balances[id] ??= {};
-        balances[id][chainId] = (balances[id][chainId] ?? 0) + t.balance;
+        balances[id][r.chainId] = (balances[id][r.chainId] ?? 0) + t.balance;
+        if (t.balance > 0) chainsWithValue.add(r.chainId);
       });
     });
 
-    // 4. Prices (CoinGecko, keyless).
+    // Prices (CoinGecko, keyless).
     const symbols = Object.keys(balances).map(
       (id) => DEFAULT_TOKENS.find((t) => t.id === id)?.symbol ?? id.toUpperCase(),
     );
     const prices = await fetchPrices(symbols);
 
-    // 5. Persist so repeat visits don't need to re-scan 15 chains.
+    // Persist so repeat visits don't need to re-scan all chains.
     storage.setScanCache(address, { balances, prices });
+
+    // Auto-hide chains that have no tokens of value.
+    const autoHidden = new Set<ChainId>();
+    CHAINS.forEach((c) => {
+      if (!chainsWithValue.has(c.id)) autoHidden.add(c.id);
+    });
 
     setState((s) => ({
       ...s,
       balances,
       prices,
       scanning: false,
+      activeChain: null,
+      hiddenChains: autoHidden,
       lastRefreshedAt: Date.now(),
       fromCache: false,
     }));
@@ -392,6 +416,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       tokens,
+      totalChains: CHAINS.length,
       alchemyKey: ALCHEMY_KEY,
       realTxEnabled: REAL_TX_ENABLED,
       connectDemo,
