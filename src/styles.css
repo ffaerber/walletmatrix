@@ -367,6 +367,8 @@ a { color: var(--accent); }
 .cell-chg { font-size: 11px; }
 .cell-chg.up { color: var(--green); }
 .cell-chg.down { color: var(--red); }
+.cell.native { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); }
+.cell.native.empty { background: rgba(255,255,255,0.02); }
 .cell.high-balance { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.35); }
 .cell.drop-ok { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
 .cell.drop-bad { border-color: var(--red); box-shadow: 0 0 0 1px var(--red) inset; }

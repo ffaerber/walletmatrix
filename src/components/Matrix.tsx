@@ -8,6 +8,7 @@ import { useWallet } from '../state/WalletContext';
 import { CHAINS, CHAINS_BY_ID } from '../lib/chains';
 import { TokenIcon, ChainIcon } from './Icons';
 import { fmtAmount, fmtUsd } from '../lib/format';
+import { isNativeOnChain } from '../lib/tokenAddresses';
 import type { Chain, ChainId, Token } from '../lib/types';
 
 export type MatrixView = 'all' | 'hasBalance';
@@ -159,6 +160,7 @@ function MatrixRow({ row, activeChains, maxUsd, onCell, onDrop }: MatrixRowProps
           amount={bal[c.id] ?? 0}
           price={price}
           change={change}
+          isNative={isNativeOnChain(token, c.id)}
           onCell={onCell}
           onDrop={onDrop}
         />
@@ -180,13 +182,14 @@ interface MatrixCellProps {
   amount: number;
   price: number;
   change: number;
+  isNative: boolean;
   onCell: MatrixProps['onCell'];
   onDrop: MatrixProps['onDrop'];
 }
 
 type DragState = 'ok' | 'bad' | null;
 
-function MatrixCell({ tokenId, chainId, amount, price, change, onCell, onDrop }: MatrixCellProps) {
+function MatrixCell({ tokenId, chainId, amount, price, change, isNative, onCell, onDrop }: MatrixCellProps) {
   const [dragState, setDragState] = useState<DragState>(null);
   const usd = amount * price;
   const isHigh = usd >= 500;
@@ -250,6 +253,7 @@ function MatrixCell({ tokenId, chainId, amount, price, change, onCell, onDrop }:
         'cell',
         isEmpty ? 'empty' : '',
         isHigh ? 'high-balance' : '',
+        isNative ? 'native' : '',
         dragState === 'ok' ? 'drop-ok' : '',
         dragState === 'bad' ? 'drop-bad' : '',
       ].join(' ')}

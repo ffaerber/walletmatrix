@@ -11,7 +11,7 @@ export const NATIVE_ADDRESS = '0x0000000000000000000000000000000000000000';
 // A token is native on a chain when its symbol matches the chain's native
 // symbol. xDAI on Gnosis is a special case — bridges treat DAI as the
 // native token there.
-function isNativeOnChain(token: Token, chainId: ChainId): boolean {
+export function isNativeOnChain(token: Token, chainId: ChainId): boolean {
   const chain = CHAINS_BY_ID[chainId];
   if (!chain) return false;
   const sym = token.symbol.toUpperCase();
