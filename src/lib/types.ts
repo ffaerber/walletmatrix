@@ -17,7 +17,6 @@ export interface Chain {
   twPath: string;
   native: string;
   logo: string;
-  testnet?: boolean;
 }
 
 export interface Token {

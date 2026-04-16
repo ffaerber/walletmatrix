@@ -30,12 +30,11 @@ export function ScanOverlay({ progress, activeChain, totalChains }: ScanOverlayP
             return (
               <div
                 key={c.id}
-                className={`chain-pill${isDone ? ' scanned' : ''}${hit ? ' hit' : ''}${isActive ? ' active' : ''}${c.testnet ? ' testnet' : ''}`}
+                className={`chain-pill${isDone ? ' scanned' : ''}${hit ? ' hit' : ''}${isActive ? ' active' : ''}`}
                 style={style}
               >
                 <ChainIcon chainId={c.id} size={20} />
                 <span>{c.short}</span>
-                {c.testnet && <span className="testnet-badge">T</span>}
               </div>
             );
           })}

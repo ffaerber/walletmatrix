@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { CHAINS, CHAINS_BY_ID, chainByChainId, initChains, MAINNET_IDS, TESTNET_IDS } from './chains';
+import { CHAINS, CHAINS_BY_ID, chainByChainId, initChains, CHAIN_IDS } from './chains';
 
 describe('chain registry', () => {
   beforeAll(async () => {
@@ -9,8 +9,7 @@ describe('chain registry', () => {
   });
 
   it('loads all configured chain IDs', () => {
-    const expected = MAINNET_IDS.length + TESTNET_IDS.length;
-    expect(CHAINS).toHaveLength(expected);
+    expect(CHAINS).toHaveLength(CHAIN_IDS.length);
   });
 
   it('every chain id is unique', () => {
