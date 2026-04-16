@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { DEFAULT_TOKENS, DEMO_BALANCES, DEMO_CHANGES } from '../lib/tokens';
+import { DEFAULT_TOKENS, DEMO_BALANCES, DEMO_CHANGES, NATIVE_CG_IDS } from '../lib/tokens';
 import { CHAINS } from '../lib/chains';
 import { scanChainsSequential, fetchPrices } from '../lib/scanner';
 import { KNOWN_TOKENS } from '../lib/knownTokens';
@@ -202,11 +202,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    // Prices (CoinGecko, keyless).
-    const symbols = Object.keys(balances).map(
-      (id) => DEFAULT_TOKENS.find((t) => t.id === id)?.symbol ?? id.toUpperCase(),
-    );
-    const prices = await fetchPrices(symbols);
+    // Prices (CoinGecko, keyless). Pass tokens with cgId + extras for
+    // ad-hoc native symbols not in the catalog (BNB, AVAX, etc.).
+    const prices = await fetchPrices(DEFAULT_TOKENS, NATIVE_CG_IDS);
 
     // Persist so repeat visits don't need to re-scan all chains.
     storage.setScanCache(address, { balances, prices });

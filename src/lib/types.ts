@@ -26,6 +26,9 @@ export interface Token {
   icon: string;
   bg: string;
   price: number;
+  // CoinGecko coin ID — the canonical cross-chain identity for this asset.
+  // Used for price lookups and to determine "same token, different chain."
+  cgId?: string;
   logoUrl?: string | null;
   custom?: boolean;
   address?: string | null;

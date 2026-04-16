@@ -3,38 +3,28 @@
 import type { Balances, Token } from './types';
 
 export const DEFAULT_TOKENS: Token[] = [
-  { id: 'eth',   symbol: 'ETH',   name: 'Ether',           icon: 'Ξ', bg: '#293241', price: 3200, aliases: ['WETH'] },
-  { id: 'usdc',  symbol: 'USDC',  name: 'USD Coin',        icon: '$', bg: '#0a2a4a', price: 1 },
-  { id: 'usdt',  symbol: 'USDT',  name: 'Tether',          icon: '₮', bg: '#0f3d2e', price: 1 },
-  { id: 'dai',   symbol: 'DAI',   name: 'Dai Stablecoin',  icon: '◈', bg: '#4a3a0f', price: 1,    aliases: ['XDAI'] },
-  { id: 'wbtc',  symbol: 'WBTC',  name: 'Wrapped Bitcoin', icon: '₿', bg: '#4a2a0a', price: 62000 },
-  { id: 'uni',   symbol: 'UNI',   name: 'Uniswap',         icon: 'U', bg: '#4a0a3a', price: 8.4 },
-  { id: 'link',  symbol: 'LINK',  name: 'Chainlink',       icon: 'L', bg: '#0a2a6a', price: 14.2 },
-  { id: 'aave',  symbol: 'AAVE',  name: 'Aave',            icon: 'A', bg: '#4a1a2a', price: 132 },
-  { id: 'op',    symbol: 'OP',    name: 'Optimism',        icon: 'O', bg: '#5a0a1a', price: 1.65 },
-  { id: 'arb',   symbol: 'ARB',   name: 'Arbitrum',        icon: 'A', bg: '#0a3a5a', price: 0.52 },
-  { id: 'matic', symbol: 'MATIC', name: 'Polygon',         icon: 'M', bg: '#3a0a5a', price: 0.41, aliases: ['POL'] },
+  { id: 'eth',   symbol: 'ETH',   name: 'Ether',           icon: 'Ξ', bg: '#293241', price: 3200, cgId: 'ethereum',        aliases: ['WETH'] },
+  { id: 'usdc',  symbol: 'USDC',  name: 'USD Coin',        icon: '$', bg: '#0a2a4a', price: 1,    cgId: 'usd-coin' },
+  { id: 'usdt',  symbol: 'USDT',  name: 'Tether',          icon: '₮', bg: '#0f3d2e', price: 1,    cgId: 'tether' },
+  { id: 'dai',   symbol: 'DAI',   name: 'Dai Stablecoin',  icon: '◈', bg: '#4a3a0f', price: 1,    cgId: 'dai',             aliases: ['XDAI'] },
+  { id: 'wbtc',  symbol: 'WBTC',  name: 'Wrapped Bitcoin', icon: '₿', bg: '#4a2a0a', price: 62000, cgId: 'wrapped-bitcoin' },
+  { id: 'uni',   symbol: 'UNI',   name: 'Uniswap',         icon: 'U', bg: '#4a0a3a', price: 8.4,  cgId: 'uniswap' },
+  { id: 'link',  symbol: 'LINK',  name: 'Chainlink',       icon: 'L', bg: '#0a2a6a', price: 14.2, cgId: 'chainlink' },
+  { id: 'aave',  symbol: 'AAVE',  name: 'Aave',            icon: 'A', bg: '#4a1a2a', price: 132,  cgId: 'aave' },
+  { id: 'op',    symbol: 'OP',    name: 'Optimism',        icon: 'O', bg: '#5a0a1a', price: 1.65, cgId: 'optimism' },
+  { id: 'arb',   symbol: 'ARB',   name: 'Arbitrum',        icon: 'A', bg: '#0a3a5a', price: 0.52, cgId: 'arbitrum' },
+  { id: 'matic', symbol: 'MATIC', name: 'Polygon',         icon: 'M', bg: '#3a0a5a', price: 0.41, cgId: 'matic-network',   aliases: ['POL'] },
 ];
 
-// Symbol → CoinGecko id for /simple/price lookups.
-export const CG_IDS: Record<string, string> = {
-  ETH: 'ethereum',
-  USDC: 'usd-coin',
-  USDT: 'tether',
-  DAI: 'dai',
-  WBTC: 'wrapped-bitcoin',
-  UNI: 'uniswap',
-  LINK: 'chainlink',
-  AAVE: 'aave',
-  OP: 'optimism',
-  ARB: 'arbitrum',
-  MATIC: 'matic-network',
-  BNB: 'binancecoin',
+// CoinGecko IDs for native currencies that aren't in DEFAULT_TOKENS.
+// These are only needed for ad-hoc token rows created by the scanner
+// when it encounters a chain whose native isn't in the catalog.
+export const NATIVE_CG_IDS: Record<string, string> = {
+  BNB:  'binancecoin',
   AVAX: 'avalanche-2',
-  FTM: 'fantom',
+  FTM:  'fantom',
   CELO: 'celo',
-  MNT: 'mantle',
-  XDAI: 'xdai',
+  MNT:  'mantle',
 };
 
 // Seed demo balances used when the user clicks "Continue with demo wallet".

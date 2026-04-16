@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchPrices } from './scanner';
+import type { Token } from './types';
+
+const eth: Token = { id: 'eth', symbol: 'ETH', name: 'Ether', icon: 'Ξ', bg: '#000', price: 0, cgId: 'ethereum' };
+const usdc: Token = { id: 'usdc', symbol: 'USDC', name: 'USD Coin', icon: '$', bg: '#000', price: 0, cgId: 'usd-coin' };
+const noCg: Token = { id: 'xyz', symbol: 'XYZ', name: 'Unknown', icon: '?', bg: '#000', price: 0 };
 
 describe('fetchPrices', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('returns an empty object for an empty symbol list', async () => {
+  it('returns an empty object for an empty token list', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const out = await fetchPrices([]);
@@ -26,7 +31,7 @@ describe('fetchPrices', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const out = await fetchPrices(['ETH', 'USDC']);
+    const out = await fetchPrices([eth, usdc]);
     expect(out).toEqual({
       ETH: { price: 3200, change: 2.1 },
       USDC: { price: 1, change: 0.01 },
@@ -37,7 +42,7 @@ describe('fetchPrices', () => {
     expect(url).toContain('include_24hr_change=true');
   });
 
-  it('deduplicates symbols (case-insensitive) and filters unknown ones', async () => {
+  it('skips tokens without a cgId', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ethereum: { usd: 3200 } }), {
         status: 200,
@@ -46,16 +51,15 @@ describe('fetchPrices', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await fetchPrices(['eth', 'ETH', 'XYZ_UNKNOWN']);
+    await fetchPrices([eth, noCg]);
     const [url] = fetchMock.mock.calls[0];
     expect(url).toContain('ids=ethereum');
-    // XYZ_UNKNOWN should not be in the CoinGecko id list.
-    expect(url).not.toContain('XYZ_UNKNOWN');
+    expect(url).not.toContain('XYZ');
   });
 
   it('swallows network errors and returns an empty map', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
-    const out = await fetchPrices(['ETH']);
+    const out = await fetchPrices([eth]);
     expect(out).toEqual({});
   });
 });

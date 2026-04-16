@@ -1,7 +1,6 @@
 import { CHAINS } from './chains';
 import { jsonRpc, hexToBigInt, formatUnits, toNumberSafe } from './rpc';
-import { CG_IDS } from './tokens';
-import type { Chain, ChainId, KnownTokens, Prices } from './types';
+import type { Chain, ChainId, KnownTokens, Prices, Token } from './types';
 
 export interface DiscoveredToken {
   id?: string;
@@ -136,18 +135,30 @@ interface CoinGeckoEntry {
   usd_24h_change?: number;
 }
 
-export async function fetchPrices(symbols: string[]): Promise<Prices> {
-  const unique = [...new Set(symbols.map((s) => s.toUpperCase()))].filter((s) => CG_IDS[s]);
-  if (!unique.length) return {};
-  const ids = unique.map((s) => CG_IDS[s]).join(',');
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
+// Accepts tokens (with cgId) and an optional extra map for ad-hoc native
+// symbols (BNB, AVAX, etc.) that aren't in the token catalog.
+export async function fetchPrices(
+  tokens: Token[],
+  extraCgIds?: Record<string, string>,
+): Promise<Prices> {
+  // Build symbol → CoinGecko ID from tokens + extras.
+  const symToCg: Record<string, string> = {};
+  tokens.forEach((t) => { if (t.cgId) symToCg[t.symbol] = t.cgId; });
+  if (extraCgIds) {
+    Object.entries(extraCgIds).forEach(([sym, cgId]) => { symToCg[sym] = cgId; });
+  }
+
+  const symbols = Object.keys(symToCg);
+  if (!symbols.length) return {};
+  const cgIds = [...new Set(symbols.map((s) => symToCg[s]))];
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('coingecko ' + res.status);
     const data = (await res.json()) as Record<string, CoinGeckoEntry>;
     const out: Prices = {};
-    unique.forEach((sym) => {
-      const entry = data[CG_IDS[sym]];
+    symbols.forEach((sym) => {
+      const entry = data[symToCg[sym]];
       if (entry) out[sym] = { price: entry.usd, change: entry.usd_24h_change ?? 0 };
     });
     return out;
