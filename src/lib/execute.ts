@@ -13,6 +13,7 @@ import {
   resolveTokenDecimals,
   NATIVE_ADDRESS,
 } from './tokenAddresses';
+import { lifiResolveToken } from './lifiTokens';
 import { encodeApprove, readAllowance } from './erc20';
 import { sendTransaction, switchToChain, waitForReceipt } from './wallet';
 import { parseUnits } from './units';
@@ -39,18 +40,42 @@ export interface ExecuteArgs {
   slippage?: number;
 }
 
+// Try local knownTokens first, then fall back to the Li.Fi token list.
+async function resolveAddress(token: Token, chainId: ChainId): Promise<string | null> {
+  const local = resolveTokenAddress(token, chainId);
+  if (local) return local;
+  // Check aliases too — the Li.Fi list may use the registry native symbol.
+  const symbols = [token.symbol, ...(token.aliases ?? [])];
+  for (const sym of symbols) {
+    const hit = await lifiResolveToken(sym, chainId);
+    if (hit) return hit.address;
+  }
+  return null;
+}
+
+async function resolveDecimals(token: Token, chainId: ChainId): Promise<number> {
+  const local = resolveTokenDecimals(token, chainId);
+  // resolveTokenDecimals defaults to 18 when unknown, but Li.Fi may know better.
+  const symbols = [token.symbol, ...(token.aliases ?? [])];
+  for (const sym of symbols) {
+    const hit = await lifiResolveToken(sym, chainId);
+    if (hit) return hit.decimals;
+  }
+  return local;
+}
+
 // Returns a fresh quote with real numbers (toAmount, fees, tool, gas).
 // Throws with a human-readable error if the token pair isn't bridgeable.
 export async function fetchQuote(args: ExecuteArgs, signal?: AbortSignal): Promise<LifiQuote> {
-  const fromAddr = resolveTokenAddress(args.fromToken, args.fromChainId);
-  const toAddr = resolveTokenAddress(args.toToken, args.toChainId);
+  const fromAddr = await resolveAddress(args.fromToken, args.fromChainId);
+  const toAddr = await resolveAddress(args.toToken, args.toChainId);
   if (!fromAddr) {
-    throw new Error(`No contract address known for ${args.fromToken.symbol} on ${args.fromChainId}`);
+    throw new Error(`No contract address known for ${args.fromToken.symbol} on chain ${args.fromChainId}`);
   }
   if (!toAddr) {
-    throw new Error(`No contract address known for ${args.toToken.symbol} on ${args.toChainId}`);
+    throw new Error(`No contract address known for ${args.toToken.symbol} on chain ${args.toChainId}`);
   }
-  const decimals = resolveTokenDecimals(args.fromToken, args.fromChainId);
+  const decimals = await resolveDecimals(args.fromToken, args.fromChainId);
   const amountWei = parseUnits(args.amountHuman, decimals);
   if (amountWei <= 0n) throw new Error('Amount must be greater than zero');
 
@@ -85,9 +110,9 @@ export async function executeQuote(
     onStage({ kind: 'switching' });
     await switchToChain(args.fromChainId);
 
-    const fromAddr = resolveTokenAddress(args.fromToken, args.fromChainId);
+    const fromAddr = await resolveAddress(args.fromToken, args.fromChainId);
     if (!fromAddr) throw new Error('Source token address disappeared');
-    const decimals = resolveTokenDecimals(args.fromToken, args.fromChainId);
+    const decimals = await resolveDecimals(args.fromToken, args.fromChainId);
     const amountWei = parseUnits(args.amountHuman, decimals);
 
     // --- Approve phase (ERC-20 only) ------------------------------------
