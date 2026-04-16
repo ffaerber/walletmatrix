@@ -21,9 +21,32 @@ type TokenCache = Record<string, Record<string, { address: string; decimals: num
 let cache: TokenCache | null = null;
 let pending: Promise<TokenCache> | null = null;
 
+async function fetchSupportedChainIds(): Promise<Set<number>> {
+  try {
+    const res = await fetch(`${LIFI_BASE}/chains`);
+    if (!res.ok) return new Set();
+    const data = (await res.json()) as { chains?: Array<{ id?: number }> };
+    return new Set((data.chains ?? []).map((c) => c.id).filter((id): id is number => typeof id === 'number'));
+  } catch {
+    return new Set();
+  }
+}
+
 async function loadTokens(): Promise<TokenCache> {
-  const chains = CHAIN_IDS.join(',');
-  const res = await fetch(`${LIFI_BASE}/tokens?chains=${chains}`);
+  // Li.Fi returns 400 if any chain in `chains=` is unsupported, so intersect
+  // our wishlist with what Li.Fi actually supports before requesting tokens.
+  const supported = await fetchSupportedChainIds();
+  const ours = supported.size
+    ? CHAIN_IDS.filter((id) => supported.has(id))
+    : CHAIN_IDS;
+  if (!ours.length) return {};
+  let res = await fetch(`${LIFI_BASE}/tokens?chains=${ours.join(',')}`);
+  // If /v1/chains didn't narrow the list (network error, unexpected shape),
+  // a single unsupported chain still makes Li.Fi return 400. Retry unfiltered
+  // and let the grouping below pick out the chains we actually care about.
+  if (res.status === 400 && supported.size === 0) {
+    res = await fetch(`${LIFI_BASE}/tokens`);
+  }
   if (!res.ok) throw new Error(`Li.Fi tokens ${res.status}`);
   const data = (await res.json()) as { tokens: Record<string, LifiTokenEntry[]> };
   const out: TokenCache = {};
