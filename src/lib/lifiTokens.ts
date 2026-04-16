@@ -59,3 +59,33 @@ export async function lifiResolveToken(
   const c = await ensureCache();
   return c[chainId]?.[symbol.toUpperCase()] ?? null;
 }
+
+// Synchronous check — returns false if the cache hasn't loaded yet.
+// Use for UI hints (drag targets), not for blocking decisions.
+export function lifiHasToken(symbol: string, chainId: string): boolean {
+  if (!cache) return false;
+  return !!cache[chainId]?.[symbol.toUpperCase()];
+}
+
+// Returns the set of chain IDs where the token (or any of its aliases)
+// exists in Li.Fi's list. Excludes the source chain.
+export function getValidBridgeTargets(
+  symbol: string,
+  aliases: string[],
+  sourceChainId: string,
+): Set<string> {
+  if (!cache) return new Set();
+  const syms = [symbol, ...aliases].map((s) => s.toUpperCase());
+  const out = new Set<string>();
+  for (const chainId of Object.keys(cache)) {
+    if (chainId === sourceChainId) continue;
+    if (syms.some((s) => !!cache![chainId]?.[s])) out.add(chainId);
+  }
+  return out;
+}
+
+// Pre-warm the cache. Call early (e.g. after initChains) so the sync
+// checks work by the time the user starts dragging.
+export async function preloadLifiTokens(): Promise<void> {
+  await ensureCache();
+}

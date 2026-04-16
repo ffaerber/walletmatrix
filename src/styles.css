@@ -371,7 +371,8 @@ a { color: var(--accent); }
 .cell.native.empty { background: rgba(255,255,255,0.02); }
 .cell.high-balance { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.35); }
 .cell.drop-ok { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
-.cell.drop-bad { border-color: var(--red); box-shadow: 0 0 0 1px var(--red) inset; }
+.cell.drop-bad { opacity: 0.3; cursor: not-allowed; }
+.cell.drop-hint { border-color: rgba(0,229,160,0.25); }
 
 .totals {
   min-width: 150px;

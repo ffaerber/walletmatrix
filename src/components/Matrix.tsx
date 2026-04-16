@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useMemo,
   useState,
   type CSSProperties,
@@ -9,6 +10,7 @@ import { CHAINS, CHAINS_BY_ID } from '../lib/chains';
 import { TokenIcon, ChainIcon } from './Icons';
 import { fmtAmount, fmtUsd } from '../lib/format';
 import { isNativeOnChain } from '../lib/tokenAddresses';
+import { getValidBridgeTargets } from '../lib/lifiTokens';
 import type { Chain, ChainId, Token } from '../lib/types';
 
 export type MatrixView = 'all' | 'hasBalance';
@@ -36,16 +38,24 @@ interface Row {
   totalUsd: number;
 }
 
+// Drag context lifted to the Matrix level so every cell can check
+// whether it's a valid drop target during dragover.
+interface DragCtx {
+  tokenId: string;
+  chainId: ChainId;
+  amount: number;
+  symbol: string;
+  validTargets: Set<string>; // chain IDs where this token can be bridged
+}
+
 export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
   const { tokens, balances, prices, hidden, hiddenChains } = useWallet();
+  const [dragCtx, setDragCtx] = useState<DragCtx | null>(null);
 
-  // Show all chains not in the hidden set. Empty chains are auto-hidden
-  // after a scan, but the user can bring them back via the Networks manager.
   const activeChains = useMemo<Chain[]>(() => {
     return CHAINS.filter((c) => !hiddenChains.has(c.id));
   }, [hiddenChains]);
 
-  // Filter and sort tokens for display.
   const rows = useMemo<Row[]>(() => {
     const enriched: Row[] = tokens.map((t) => {
       const row = balances[t.id] ?? {};
@@ -72,6 +82,17 @@ export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
   }, [rows, activeChains]);
 
   const grandTotal = rows.reduce((sum, r) => sum + r.totalUsd, 0);
+
+  // Called by cells when a drag starts — computes valid targets once.
+  const onDragStart = useCallback((tokenId: string, chainId: ChainId, amount: number) => {
+    const token = tokens.find((t) => t.id === tokenId);
+    const symbol = token?.symbol ?? tokenId.toUpperCase();
+    const aliases = token?.aliases ?? [];
+    const validTargets = getValidBridgeTargets(symbol, aliases, chainId);
+    setDragCtx({ tokenId, chainId, amount, symbol, validTargets });
+  }, [tokens]);
+
+  const onDragEnd = useCallback(() => setDragCtx(null), []);
 
   return (
     <div className="matrix-wrap">
@@ -103,8 +124,11 @@ export function Matrix({ view, sort, onCell, onDrop }: MatrixProps) {
               row={r}
               activeChains={activeChains}
               maxUsd={maxRowUsd}
+              dragCtx={dragCtx}
               onCell={onCell}
               onDrop={onDrop}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
           ))}
         </tbody>
@@ -131,11 +155,14 @@ interface MatrixRowProps {
   row: Row;
   activeChains: Chain[];
   maxUsd: number;
+  dragCtx: DragCtx | null;
   onCell: MatrixProps['onCell'];
   onDrop: MatrixProps['onDrop'];
+  onDragStart: (tokenId: string, chainId: ChainId, amount: number) => void;
+  onDragEnd: () => void;
 }
 
-function MatrixRow({ row, activeChains, maxUsd, onCell, onDrop }: MatrixRowProps) {
+function MatrixRow({ row, activeChains, maxUsd, dragCtx, onCell, onDrop, onDragStart, onDragEnd }: MatrixRowProps) {
   const { token, row: bal, price, change, totalAmount, totalUsd } = row;
   const barPct = Math.round((totalUsd / maxUsd) * 100);
   return (
@@ -161,8 +188,11 @@ function MatrixRow({ row, activeChains, maxUsd, onCell, onDrop }: MatrixRowProps
           price={price}
           change={change}
           isNative={isNativeOnChain(token, c.id)}
+          dragCtx={dragCtx}
           onCell={onCell}
           onDrop={onDrop}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
         />
       ))}
       <td className="totals">
@@ -183,17 +213,26 @@ interface MatrixCellProps {
   price: number;
   change: number;
   isNative: boolean;
+  dragCtx: DragCtx | null;
   onCell: MatrixProps['onCell'];
   onDrop: MatrixProps['onDrop'];
+  onDragStart: (tokenId: string, chainId: ChainId, amount: number) => void;
+  onDragEnd: () => void;
 }
 
-type DragState = 'ok' | 'bad' | null;
-
-function MatrixCell({ tokenId, chainId, amount, price, change, isNative, onCell, onDrop }: MatrixCellProps) {
-  const [dragState, setDragState] = useState<DragState>(null);
+function MatrixCell({
+  tokenId, chainId, amount, price, change, isNative,
+  dragCtx, onCell, onDrop, onDragStart, onDragEnd,
+}: MatrixCellProps) {
+  const [hovering, setHovering] = useState(false);
   const usd = amount * price;
   const isHigh = usd >= 500;
   const isEmpty = amount <= 0;
+
+  // During a drag, determine if this cell is a valid target.
+  const isSource = dragCtx?.chainId === chainId && dragCtx?.tokenId === tokenId;
+  const isValidTarget = dragCtx && !isSource && dragCtx.validTargets.has(chainId);
+  const isInvalidTarget = dragCtx && !isSource && !dragCtx.validTargets.has(chainId);
 
   function handleDragStart(e: DragEvent<HTMLTableCellElement>) {
     if (isEmpty) {
@@ -203,31 +242,28 @@ function MatrixCell({ tokenId, chainId, amount, price, change, isNative, onCell,
     const payload = { tokenId, chainId, amount };
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'move';
-    // Custom ghost — amount + source chain name.
     const ghost = document.createElement('div');
     ghost.className = 'drag-ghost';
-    ghost.textContent = `${fmtAmount(amount)} ${tokenId.toUpperCase()} · ${CHAINS_BY_ID[chainId].short}`;
+    ghost.textContent = `${fmtAmount(amount)} ${tokenId.toUpperCase()} · ${CHAINS_BY_ID[chainId]?.short ?? chainId}`;
     document.body.appendChild(ghost);
     e.dataTransfer.setDragImage(ghost, 20, 16);
     setTimeout(() => ghost.remove(), 0);
+    onDragStart(tokenId, chainId, amount);
   }
 
   function handleDragOver(e: DragEvent<HTMLTableCellElement>) {
+    if (isInvalidTarget) return; // Don't allow drop on invalid targets.
     e.preventDefault();
-    if (!e.dataTransfer.types.includes('application/json')) return;
-    // We can't read the full payload during dragover (only types), so we
-    // optimistically mark the cell as a valid drop target; onDrop filters
-    // out same-chain drops.
-    setDragState('ok');
+    setHovering(true);
   }
 
   function handleDragLeave() {
-    setDragState(null);
+    setHovering(false);
   }
 
   function handleDrop(e: DragEvent<HTMLTableCellElement>) {
     e.preventDefault();
-    setDragState(null);
+    setHovering(false);
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json')) as {
         tokenId: string;
@@ -254,14 +290,16 @@ function MatrixCell({ tokenId, chainId, amount, price, change, isNative, onCell,
         isEmpty ? 'empty' : '',
         isHigh ? 'high-balance' : '',
         isNative ? 'native' : '',
-        dragState === 'ok' ? 'drop-ok' : '',
-        dragState === 'bad' ? 'drop-bad' : '',
+        hovering && isValidTarget ? 'drop-ok' : '',
+        isInvalidTarget ? 'drop-bad' : '',
+        isValidTarget && !hovering ? 'drop-hint' : '',
       ].join(' ')}
       draggable={!isEmpty}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onDragEnd={onDragEnd}
       onClick={() => !isEmpty && onCell(tokenId, chainId)}
     >
       {isEmpty ? (
