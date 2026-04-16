@@ -43,6 +43,8 @@ interface WalletState {
   hidden: Set<string>;
   hiddenChains: Set<ChainId>;
   customTokens: Token[];
+  tokenOrder: string[];     // persisted custom row order (token IDs)
+  chainOrder: string[];     // persisted custom column order (chain IDs)
   // Epoch ms of the most recent scan (or cache hit). `null` before any load.
   lastRefreshedAt: number | null;
   // True when the current data came from localStorage rather than a fresh
@@ -80,6 +82,8 @@ interface WalletContextValue extends WalletState {
   showAll: () => void;
   toggleHideChain: (chainId: ChainId) => void;
   showAllChains: () => void;
+  setTokenOrder: (order: string[]) => void;
+  setChainOrder: (order: string[]) => void;
   addCustomToken: (draft: CustomTokenDraft) => void;
   removeCustomToken: (tid: string) => void;
   applyTransfer: (args: TransferArgs) => void;
@@ -99,6 +103,8 @@ function makeInitial(): WalletState {
     hidden: storage.getHidden(),
     hiddenChains: storage.getHiddenChains(),
     customTokens: storage.getCustom(),
+    tokenOrder: storage.getTokenOrder(),
+    chainOrder: storage.getChainOrder(),
     lastRefreshedAt: null,
     fromCache: false,
   };
@@ -340,6 +346,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setTokenOrder = useCallback((order: string[]) => {
+    storage.setTokenOrder(order);
+    setState((s) => ({ ...s, tokenOrder: order }));
+  }, []);
+
+  const setChainOrder = useCallback((order: string[]) => {
+    storage.setChainOrder(order);
+    setState((s) => ({ ...s, chainOrder: order }));
+  }, []);
+
   const addCustomToken = useCallback((draft: CustomTokenDraft) => {
     setState((s) => {
       const id = draft.symbol.toLowerCase();
@@ -431,6 +447,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       showAll,
       toggleHideChain,
       showAllChains,
+      setTokenOrder,
+      setChainOrder,
       addCustomToken,
       removeCustomToken,
       applyTransfer,
@@ -448,6 +466,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       showAll,
       toggleHideChain,
       showAllChains,
+      setTokenOrder,
+      setChainOrder,
       addCustomToken,
       removeCustomToken,
       applyTransfer,

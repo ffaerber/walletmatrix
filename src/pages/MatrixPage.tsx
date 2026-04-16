@@ -131,6 +131,7 @@ export default function MatrixPage() {
           <div className="inline-flex border border-border rounded-xl overflow-hidden bg-surface">
             <button className={`${segBtn} ${sort === 'value' ? 'bg-surface-2 text-text' : ''}`} onClick={() => setSort('value')}>By value</button>
             <button className={`${segBtn} ${sort === 'name' ? 'bg-surface-2 text-text' : ''}`} onClick={() => setSort('name')}>By name</button>
+            <button className={`${segBtn} ${sort === 'custom' ? 'bg-surface-2 text-text' : ''}`} onClick={() => setSort('custom')}>Custom</button>
           </div>
         </div>
         <div className="flex-1" />
@@ -138,7 +139,7 @@ export default function MatrixPage() {
         <button className={btn} onClick={() => setShowTokenMgr(true)}>Tokens</button>
       </section>
 
-      <Matrix view={view} sort={sort} onCell={(tid, nid) => setHistoryCell({ tid, nid })} onDrop={setTransferIntent} />
+      <Matrix view={view} sort={sort} onSortChange={setSort} onCell={(tid, nid) => setHistoryCell({ tid, nid })} onDrop={setTransferIntent} />
 
       {scanning && <ScanOverlay progress={scanProgress} activeChain={activeChain} totalChains={totalChains} />}
       {transferIntent && <TransferModal intent={transferIntent} onClose={() => setTransferIntent(null)} />}

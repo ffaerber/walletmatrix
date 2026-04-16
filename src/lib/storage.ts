@@ -3,6 +3,8 @@ import type { ChainId, ScanCache, Token } from './types';
 const HIDDEN_TOKENS_KEY = 'wm_hidden_tokens';
 const HIDDEN_CHAINS_KEY = 'wm_hidden_chains';
 const CUSTOM_TOKENS_KEY = 'wm_custom_tokens';
+const TOKEN_ORDER_KEY = 'wm_token_order';
+const CHAIN_ORDER_KEY = 'wm_chain_order';
 const SCAN_CACHE_PREFIX = 'wm_scan_'; // wm_scan_<lowercaseAddress>
 const SCAN_CACHE_VERSION = 2; // bumped: chain IDs changed to numeric strings
 
@@ -37,6 +39,14 @@ export const storage = {
     new Set(read<ChainId[]>(HIDDEN_CHAINS_KEY, [])),
   setHiddenChains: (set: Set<ChainId>): void =>
     write(HIDDEN_CHAINS_KEY, [...set]),
+
+  // --- token order ---------------------------------------------------------
+  getTokenOrder: (): string[] => read<string[]>(TOKEN_ORDER_KEY, []),
+  setTokenOrder: (list: string[]): void => write(TOKEN_ORDER_KEY, list),
+
+  // --- chain order ---------------------------------------------------------
+  getChainOrder: (): string[] => read<string[]>(CHAIN_ORDER_KEY, []),
+  setChainOrder: (list: string[]): void => write(CHAIN_ORDER_KEY, list),
 
   // --- custom tokens ------------------------------------------------------
   getCustom: (): Token[] => read<Token[]>(CUSTOM_TOKENS_KEY, []),
