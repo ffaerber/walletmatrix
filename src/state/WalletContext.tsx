@@ -156,7 +156,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const startScan = useCallback(async (address: string) => {
+  const startScan = useCallback(async (address: string, opts: { autoHide?: boolean } = {}) => {
+    const autoHide = opts.autoHide ?? true;
     setState((s) => ({ ...s, address, demo: false, scanning: true, activeChain: null, scanProgress: {} }));
 
     // Scan chains sequentially, ordered by numeric chain ID (Ethereum first).
@@ -221,11 +222,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Persist so repeat visits don't need to re-scan all chains.
     storage.setScanCache(address, { balances, prices });
 
-    // Auto-hide chains that have no tokens of value.
-    const autoHidden = new Set<ChainId>();
-    CHAINS.forEach((c) => {
-      if (!chainsWithValue.has(c.id)) autoHidden.add(c.id);
-    });
+    // On first connect, hide empty chains so the matrix isn't mostly blank.
+    // On refresh, keep whatever the user has since chosen to show or hide.
+    let nextHidden: Set<ChainId> | null = null;
+    if (autoHide) {
+      nextHidden = new Set<ChainId>();
+      CHAINS.forEach((c) => {
+        if (!chainsWithValue.has(c.id)) nextHidden!.add(c.id);
+      });
+      storage.setHiddenChains(nextHidden);
+    }
 
     setState((s) => ({
       ...s,
@@ -233,7 +239,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       prices,
       scanning: false,
       activeChain: null,
-      hiddenChains: autoHidden,
+      hiddenChains: nextHidden ?? s.hiddenChains,
       lastRefreshedAt: Date.now(),
       fromCache: false,
     }));
@@ -427,7 +433,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const refreshBalances = useCallback(async (): Promise<void> => {
     const addr = loadedKeyRef.current;
     if (!addr || addr === 'demo') return;
-    await startScan(addr);
+    await startScan(addr, { autoHide: false });
   }, [startScan]);
 
   const disconnect = useCallback(() => {

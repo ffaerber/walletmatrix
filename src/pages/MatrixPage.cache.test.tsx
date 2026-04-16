@@ -60,4 +60,31 @@ describe('MatrixPage — scan cache', () => {
       expect(fetchSpy).toHaveBeenCalled();
     });
   });
+
+  it('refresh preserves user-visible chains when balances are zero', async () => {
+    storage.setScanCache(ADDR, { balances: {}, prices: {} });
+    // hiddenChains defaults to empty in storage, so all chains start visible.
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: '0x0' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+
+    const user = userEvent.setup();
+    renderWithProviders(routes, [`/address/${ADDR}`]);
+
+    // Ethereum (chain id 1) is visible after hydrating from cache.
+    expect(await screen.findByText('Ethereum Mainnet')).toBeInTheDocument();
+
+    const btn = await screen.findByRole('button', { name: /Refresh/ });
+    await user.click(btn);
+
+    // After a refresh with zero balances everywhere, the Ethereum column
+    // must still be visible — the old auto-hide pass used to remove it on
+    // every refresh.
+    await waitFor(() => {
+      expect(screen.getByText('Ethereum Mainnet')).toBeInTheDocument();
+    });
+  });
 });
