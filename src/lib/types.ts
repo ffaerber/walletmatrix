@@ -1,9 +1,9 @@
 // Central type definitions shared across the app.
 
-export type ChainId =
-  | 'eth' | 'base' | 'arb' | 'op' | 'poly' | 'bnb' | 'gno' | 'avax'
-  | 'ftm' | 'zks' | 'zora' | 'celo' | 'scrl' | 'linea' | 'mntl'
-  | 'sep' | 'hol' | 'bsep' | 'asep';
+// Chain IDs are numeric EVM chain IDs stored as strings (e.g. "1", "137").
+// No longer a fixed union — chains are loaded dynamically from the
+// ethereum-lists/chains registry at startup.
+export type ChainId = string;
 
 export interface Chain {
   id: ChainId;

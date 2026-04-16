@@ -22,9 +22,9 @@ describe('MatrixPage — scan cache', () => {
   });
 
   it('hydrates from localStorage without calling fetch when a cache exists', async () => {
-    // Pre-seed the cache so the component never needs to scan.
+    // Pre-seed the cache with numeric chain ID keys.
     storage.setScanCache(ADDR, {
-      balances: { eth: { eth: 1.5, base: 0.25 }, usdc: { eth: 1200 } },
+      balances: { eth: { '1': 1.5, '8453': 0.25 }, usdc: { '1': 1200 } },
       prices: { ETH: { price: 3200, change: 1.2 }, USDC: { price: 1, change: 0 } },
     });
     const fetchSpy = vi.fn().mockRejectedValue(new Error('should not hit the network'));
@@ -32,10 +32,7 @@ describe('MatrixPage — scan cache', () => {
 
     renderWithProviders(routes, [`/address/${ADDR}`]);
 
-    // A cached row's USD total shows up in the matrix — use the header
-    // address badge as a lighter smoke test.
     expect(await screen.findByText(/0xaaaa…aaaa/)).toBeInTheDocument();
-    // The CACHED badge is only shown when we hydrated from cache.
     expect(await screen.findByText('CACHED')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -45,7 +42,6 @@ describe('MatrixPage — scan cache', () => {
       balances: {},
       prices: {},
     });
-    // Any 2xx JSON is fine — the scanner short-circuits on 0x0 balances.
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: '0x0' }), {
         status: 200,
@@ -57,11 +53,9 @@ describe('MatrixPage — scan cache', () => {
     const user = userEvent.setup();
     renderWithProviders(routes, [`/address/${ADDR}`]);
 
-    // Wait for cached-mount to render the Refresh button.
     const btn = await screen.findByRole('button', { name: /Refresh/ });
     await user.click(btn);
 
-    // Once the click fires, the scanner hits RPCs for all 15 chains.
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalled();
     });

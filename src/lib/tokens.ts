@@ -38,18 +38,19 @@ export const CG_IDS: Record<string, string> = {
 };
 
 // Seed demo balances used when the user clicks "Continue with demo wallet".
+// Keys are numeric EVM chain IDs as strings.
 export const DEMO_BALANCES: Balances = {
-  eth:   { eth: 1.842, base: 0.231, arb: 0.512, op: 0.104, zks: 0.05,  linea: 0.03, scrl: 0.02, zora: 0.012 },
-  usdc:  { eth: 850, base: 1200, arb: 400, op: 250, poly: 640, gno: 120, avax: 300 },
-  usdt:  { eth: 500, bnb: 820, poly: 330, arb: 210, avax: 110 },
-  dai:   { eth: 120, gno: 900, poly: 45 },
-  wbtc:  { eth: 0.0521, arb: 0.0102 },
-  uni:   { eth: 42.1, arb: 18.3, op: 9.7 },
-  link:  { eth: 58.4, bnb: 12.1, poly: 24.0 },
-  aave:  { eth: 3.21, poly: 1.1, avax: 0.5 },
-  op:    { op: 210 },
-  arb:   { arb: 512 },
-  matic: { poly: 2400 },
+  eth:   { '1': 1.842, '8453': 0.231, '42161': 0.512, '10': 0.104, '324': 0.05, '59144': 0.03, '534352': 0.02, '7777777': 0.012 },
+  usdc:  { '1': 850, '8453': 1200, '42161': 400, '10': 250, '137': 640, '100': 120, '43114': 300 },
+  usdt:  { '1': 500, '56': 820, '137': 330, '42161': 210, '43114': 110 },
+  dai:   { '1': 120, '100': 900, '137': 45 },
+  wbtc:  { '1': 0.0521, '42161': 0.0102 },
+  uni:   { '1': 42.1, '42161': 18.3, '10': 9.7 },
+  link:  { '1': 58.4, '56': 12.1, '137': 24.0 },
+  aave:  { '1': 3.21, '137': 1.1, '43114': 0.5 },
+  op:    { '10': 210 },
+  arb:   { '42161': 512 },
+  matic: { '137': 2400 },
 };
 
 // Starter 24h change data for the UI — replaced by real CoinGecko

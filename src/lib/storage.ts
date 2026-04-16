@@ -4,7 +4,7 @@ const HIDDEN_TOKENS_KEY = 'wm_hidden_tokens';
 const HIDDEN_CHAINS_KEY = 'wm_hidden_chains';
 const CUSTOM_TOKENS_KEY = 'wm_custom_tokens';
 const SCAN_CACHE_PREFIX = 'wm_scan_'; // wm_scan_<lowercaseAddress>
-const SCAN_CACHE_VERSION = 1;
+const SCAN_CACHE_VERSION = 2; // bumped: chain IDs changed to numeric strings
 
 function read<T>(key: string, fallback: T): T {
   try {
