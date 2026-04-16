@@ -29,6 +29,9 @@ export interface Token {
   logoUrl?: string | null;
   custom?: boolean;
   address?: string | null;
+  // Other symbols that map to the same row (e.g. ETH aliases WETH,
+  // DAI aliases XDAI). Driven by the eip155 nativeCurrency.symbol.
+  aliases?: string[];
 }
 
 // BALANCES[tokenId][chainId] = amount

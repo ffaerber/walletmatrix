@@ -7,10 +7,10 @@ import {
 } from './tokenAddresses';
 import type { Token } from './types';
 
-const eth: Token = { id: 'eth', symbol: 'ETH', name: 'Ether', icon: 'Ξ', bg: '#000', price: 3200 };
+const eth: Token = { id: 'eth', symbol: 'ETH', name: 'Ether', icon: 'Ξ', bg: '#000', price: 3200, aliases: ['WETH'] };
 const usdc: Token = { id: 'usdc', symbol: 'USDC', name: 'USD Coin', icon: '$', bg: '#000', price: 1 };
-const matic: Token = { id: 'matic', symbol: 'MATIC', name: 'Polygon', icon: 'M', bg: '#000', price: 0.4 };
-const dai: Token = { id: 'dai', symbol: 'DAI', name: 'Dai', icon: '◈', bg: '#000', price: 1 };
+const matic: Token = { id: 'matic', symbol: 'MATIC', name: 'Polygon', icon: 'M', bg: '#000', price: 0.4, aliases: ['POL'] };
+const dai: Token = { id: 'dai', symbol: 'DAI', name: 'Dai', icon: '◈', bg: '#000', price: 1, aliases: ['XDAI'] };
 
 describe('resolveTokenAddress', () => {
   it('returns the zero address for a native token', () => {
@@ -20,15 +20,14 @@ describe('resolveTokenAddress', () => {
     expect(resolveTokenAddress(eth, '42161')).toBe(NATIVE_ADDRESS);
   });
 
-  it('MATIC is not native on Polygon (registry says POL)', () => {
-    // The registry nativeCurrency.symbol for chain 137 is POL, not MATIC.
-    // MATIC resolves as a known ERC-20 instead.
-    expect(resolveTokenAddress(matic, '137')).not.toBe(NATIVE_ADDRESS);
+  it('MATIC is native on Polygon via POL alias', () => {
+    // Registry says POL, but MATIC has aliases: ['POL'].
+    expect(resolveTokenAddress(matic, '137')).toBe(NATIVE_ADDRESS);
   });
 
-  it('DAI is not native on Gnosis (registry says XDAI)', () => {
-    // The registry nativeCurrency.symbol for chain 100 is XDAI, not DAI.
-    expect(resolveTokenAddress(dai, '100')).not.toBe(NATIVE_ADDRESS);
+  it('DAI is native on Gnosis via XDAI alias', () => {
+    // Registry says XDAI, but DAI has aliases: ['XDAI'].
+    expect(resolveTokenAddress(dai, '100')).toBe(NATIVE_ADDRESS);
   });
 
   it('resolves ERC-20 contract addresses from the known-token table', () => {
@@ -53,6 +52,7 @@ describe('resolveTokenAddress', () => {
 describe('resolveTokenDecimals', () => {
   it('returns 18 for natives', () => {
     expect(resolveTokenDecimals(eth, '1')).toBe(18);
+    expect(resolveTokenDecimals(matic, '137')).toBe(18);
   });
 
   it('returns USDC as 6 on Ethereum (per knownTokens)', () => {

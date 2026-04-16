@@ -172,20 +172,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Track which chains have any value (native or ERC-20).
     const chainsWithValue = new Set<ChainId>();
 
+    // Build a lookup: uppercase symbol/alias → token id.
+    const symToId: Record<string, string> = {};
+    DEFAULT_TOKENS.forEach((t) => {
+      symToId[t.symbol.toUpperCase()] = t.id;
+      t.aliases?.forEach((a) => { symToId[a.toUpperCase()] = t.id; });
+    });
+
     results.forEach((r) => {
       const chain = CHAINS.find((c) => c.id === r.chainId);
       if (!chain) return;
 
-      // Native balance assignment.
+      // Native balance assignment — look up the token row by native symbol
+      // or alias (e.g. XDAI → dai, POL → matic, WETH → eth).
       if (r.native > 0) {
         chainsWithValue.add(r.chainId);
-        if (chain.native === 'ETH') balances.eth[r.chainId] = r.native;
-        else if (chain.native === 'MATIC') balances.matic[r.chainId] = r.native;
-        else {
-          const id = chain.native.toLowerCase();
-          balances[id] ??= {};
-          balances[id][r.chainId] = r.native;
-        }
+        const id = symToId[chain.native.toUpperCase()] ?? chain.native.toLowerCase();
+        balances[id] ??= {};
+        balances[id][r.chainId] = r.native;
       }
 
       // ERC-20 assignments.

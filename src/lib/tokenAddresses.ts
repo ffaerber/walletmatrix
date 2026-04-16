@@ -8,12 +8,14 @@ import type { ChainId, Token } from './types';
 
 export const NATIVE_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-// A token is native on a chain when its symbol matches the chain's
-// nativeCurrency.symbol from the eip155 registry. No special cases.
+// A token is native on a chain when its symbol (or any alias) matches
+// the chain's nativeCurrency.symbol from the eip155 registry.
 export function isNativeOnChain(token: Token, chainId: ChainId): boolean {
   const chain = CHAINS_BY_ID[chainId];
   if (!chain) return false;
-  return token.symbol.toUpperCase() === chain.native.toUpperCase();
+  const nat = chain.native.toUpperCase();
+  if (token.symbol.toUpperCase() === nat) return true;
+  return token.aliases?.some((a) => a.toUpperCase() === nat) ?? false;
 }
 
 export function resolveTokenAddress(token: Token, chainId: ChainId): string | null {
