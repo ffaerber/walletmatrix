@@ -21,7 +21,7 @@ export default function LoginPage() {
       // Connect, then navigate to the address-scoped route. MatrixPage's
       // loadAddress effect will dedupe against the scan we just kicked off.
       const address = await connectMetaMask();
-      navigate(`/matrix/${address}`);
+      navigate(`/${address}`);
     } catch (e: unknown) {
       const err = e as { code?: number; message?: string };
       // Code 4001 = user rejected the request.
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
   function handleDemo() {
     push('Loaded demo wallet.', 'success');
-    navigate(`/matrix/${DEMO_ADDRESS_PARAM}`);
+    navigate(`/${DEMO_ADDRESS_PARAM}`);
   }
 
   return (
@@ -57,7 +57,7 @@ export default function LoginPage() {
         </button>
         <p className="disclaimer">
           Read-only. No signing is requested on connect. Keys never leave your wallet.
-          Share a deep link like <code>#/matrix/0x…</code> to view any address.
+          Share a deep link like <code>#/0x…</code> to view any address.
         </p>
       </div>
       <footer className="login-footer">

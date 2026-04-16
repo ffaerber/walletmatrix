@@ -13,18 +13,18 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /Continue with demo wallet/i })).toBeInTheDocument();
   });
 
-  it('navigates to /matrix/demo when the demo button is clicked', async () => {
+  it('navigates to /demo when the demo button is clicked', async () => {
     const user = userEvent.setup();
     const { router } = renderWithProviders([
       { index: true, element: <LoginPage /> },
-      { path: 'matrix/:address', element: <MatrixPage /> },
+      { path: ':address', element: <MatrixPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ]);
 
     await user.click(screen.getByRole('button', { name: /Continue with demo wallet/i }));
 
-    // After the click we're on /matrix/demo and the matrix header is mounted.
-    expect(router.state.location.pathname).toBe('/matrix/demo');
+    // After the click we're on /demo and the matrix header is mounted.
+    expect(router.state.location.pathname).toBe('/demo');
     expect(await screen.findByText(/WalletMatrix/i)).toBeInTheDocument();
     expect(screen.getByText(/DEMO/)).toBeInTheDocument();
   });
