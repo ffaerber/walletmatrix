@@ -9,7 +9,7 @@ import { storage } from '../lib/storage';
 
 const routes = [
   { index: true, element: <LoginPage /> },
-  { path: 'matrix/:address', element: <MatrixPage /> },
+  { path: 'address/:addressOrEns', element: <MatrixPage /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ];
 
@@ -30,7 +30,7 @@ describe('MatrixPage — scan cache', () => {
     const fetchSpy = vi.fn().mockRejectedValue(new Error('should not hit the network'));
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-    renderWithProviders(routes, [`/matrix/${ADDR}`]);
+    renderWithProviders(routes, [`/address/${ADDR}`]);
 
     // A cached row's USD total shows up in the matrix — use the header
     // address badge as a lighter smoke test.
@@ -55,7 +55,7 @@ describe('MatrixPage — scan cache', () => {
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
     const user = userEvent.setup();
-    renderWithProviders(routes, [`/matrix/${ADDR}`]);
+    renderWithProviders(routes, [`/address/${ADDR}`]);
 
     // Wait for cached-mount to render the Refresh button.
     const btn = await screen.findByRole('button', { name: /Refresh/ });

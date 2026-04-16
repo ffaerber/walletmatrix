@@ -13,14 +13,18 @@ import {
   isAddress,
   shortAddr,
 } from '../lib/format';
+import { resolveEns } from '../lib/ens';
 import { useToast } from '../components/Toast';
 import type { ChainId, HistoryCell, TransferIntent } from '../lib/types';
 
 export default function MatrixPage() {
   const navigate = useNavigate();
-  const { address: urlAddress } = useParams<{ address: string }>();
+  // New route uses :addressOrEns, legacy route uses :address.
+  const params = useParams<{ addressOrEns?: string; address?: string }>();
+  const urlParam = params.addressOrEns ?? params.address;
   const { push } = useToast();
   const {
+    address: walletAddress,
     demo,
     scanning,
     scanProgress,
@@ -37,16 +41,21 @@ export default function MatrixPage() {
   const [showTokenMgr, setShowTokenMgr] = useState(false);
   const [showNetworkMgr, setShowNetworkMgr] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
-  // Is the URL param a valid key (address or demo sentinel)?
-  const validParam = useMemo(
-    () => urlAddress === DEMO_ADDRESS_PARAM || isAddress(urlAddress),
-    [urlAddress],
-  );
+  // Valid if demo, a well-formed 0x address, or an ENS name (no 0x prefix).
+  // Rejects only malformed 0x strings (wrong length / bad hex chars).
+  const validParam = useMemo(() => {
+    if (!urlParam) return false;
+    if (urlParam === DEMO_ADDRESS_PARAM) return true;
+    if (/^0x[a-fA-F0-9]{40}$/.test(urlParam)) return true;
+    return !urlParam.startsWith('0x'); // ENS name
+  }, [urlParam]);
 
-  // Reconcile state with whatever's in the URL.
+  // Reconcile state with whatever's in the URL. For ENS names, resolve
+  // on-chain first, then hand the 0x address to loadAddress.
   useEffect(() => {
-    if (!urlAddress) {
+    if (!urlParam) {
       navigate('/', { replace: true });
       return;
     }
@@ -55,8 +64,36 @@ export default function MatrixPage() {
       navigate('/', { replace: true });
       return;
     }
-    void loadAddress(urlAddress);
-  }, [urlAddress, validParam, loadAddress, navigate, push]);
+
+    // Demo or raw 0x address — load directly.
+    if (urlParam === DEMO_ADDRESS_PARAM || isAddress(urlParam)) {
+      void loadAddress(urlParam);
+      return;
+    }
+
+    // Otherwise treat it as an ENS name.
+    let cancelled = false;
+    setResolving(true);
+    resolveEns(urlParam)
+      .then((resolved) => {
+        if (cancelled) return;
+        if (!resolved) {
+          push(`Could not resolve "${urlParam}" via ENS.`, 'error');
+          navigate('/', { replace: true });
+          return;
+        }
+        void loadAddress(resolved);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        push(`ENS lookup failed for "${urlParam}".`, 'error');
+        navigate('/', { replace: true });
+      })
+      .finally(() => {
+        if (!cancelled) setResolving(false);
+      });
+    return () => { cancelled = true; };
+  }, [urlParam, validParam, loadAddress, navigate, push]);
 
   async function handleRefresh() {
     if (refreshing || scanning) return;
@@ -79,8 +116,15 @@ export default function MatrixPage() {
     setHistoryCell({ tid, nid });
   }
 
-  const displayAddress = urlAddress === DEMO_ADDRESS_PARAM ? null : urlAddress;
-  const isRealWallet = !demo && !!displayAddress;
+  // Show the ENS name in the header when the URL param is an ENS name,
+  // otherwise show the shortened 0x address.
+  const isEnsParam = !!urlParam && urlParam !== DEMO_ADDRESS_PARAM && !isAddress(urlParam);
+  const displayLabel = urlParam === DEMO_ADDRESS_PARAM
+    ? null
+    : isEnsParam
+      ? urlParam
+      : shortAddr(walletAddress);
+  const isRealWallet = !demo && !!walletAddress;
 
   return (
     <main className="matrix-page">
@@ -92,9 +136,9 @@ export default function MatrixPage() {
           {fromCache && !demo && <span className="badge" title="Loaded from local cache">CACHED</span>}
         </div>
         <div className="app-header-right">
-          {displayAddress && (
-            <span className="addr muted" title={displayAddress}>
-              {shortAddr(displayAddress)}
+          {displayLabel && (
+            <span className="addr muted" title={walletAddress ?? urlParam ?? ''}>
+              {displayLabel}
             </span>
           )}
           {isRealWallet && lastRefreshedAt && (
@@ -120,6 +164,10 @@ export default function MatrixPage() {
           </button>
         </div>
       </header>
+
+      {resolving && (
+        <div className="ens-resolving">Resolving ENS name…</div>
+      )}
 
       <section className="toolbar">
         <div className="toolbar-group">

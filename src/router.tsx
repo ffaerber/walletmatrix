@@ -5,20 +5,20 @@ import MatrixPage from './pages/MatrixPage';
 
 // HashRouter is required for Swarm/Bee static deploys: gateways serve the
 // exact path requested and don't rewrite unknown paths back to index.html, so
-// routing has to live inside the URL fragment (`#/0x…`, `#/`).
+// routing has to live inside the URL fragment (`#/address/0x…`, `#/`).
 //
-// The matrix route takes a wallet address (or the literal `demo` sentinel)
-// as a URL parameter. Deep-linking to `#/0xabc…` triggers a scan for
-// that address on load; sharing `#/demo` boots the demo wallet.
-// The legacy `#/matrix/0x…` form is kept for backward compatibility.
+// The address route accepts a 0x address, an ENS name (e.g. "vitalik"),
+// or the literal `demo` sentinel. ENS names are resolved on-chain by
+// MatrixPage before scanning.
+// Legacy `#/matrix/0x…` form is kept for backward compatibility.
 export const router = createHashRouter([
   {
     path: '/',
     element: <AppLayout />,
     children: [
       { index: true, element: <LoginPage /> },
-      // Short deeplink: /#/0xabc… or /#/demo
-      { path: ':address', element: <MatrixPage /> },
+      // Primary deeplink: /#/address/0xabc… or /#/address/vitalik or /#/address/demo
+      { path: 'address/:addressOrEns', element: <MatrixPage /> },
       // Legacy long form kept for backward compat.
       { path: 'matrix/:address', element: <MatrixPage /> },
       { path: 'matrix', element: <Navigate to="/" replace /> },
