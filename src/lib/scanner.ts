@@ -131,17 +131,14 @@ async function scanChainErc20(
 // --- prices ---------------------------------------------------------------
 // Keyless CoinGecko batch lookup — 24h change included.
 interface CoinGeckoEntry {
-  usd: number;
-  usd_24h_change?: number;
+  [key: string]: number | undefined;
 }
 
-// Accepts tokens (with cgId) and an optional extra map for ad-hoc native
-// symbols (BNB, AVAX, etc.) that aren't in the token catalog.
 export async function fetchPrices(
   tokens: Token[],
   extraCgIds?: Record<string, string>,
+  currency: string = 'usd',
 ): Promise<Prices> {
-  // Build symbol → CoinGecko ID from tokens + extras.
   const symToCg: Record<string, string> = {};
   tokens.forEach((t) => { if (t.cgId) symToCg[t.symbol] = t.cgId; });
   if (extraCgIds) {
@@ -151,7 +148,7 @@ export async function fetchPrices(
   const symbols = Object.keys(symToCg);
   if (!symbols.length) return {};
   const cgIds = [...new Set(symbols.map((s) => symToCg[s]))];
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds.join(',')}&vs_currencies=${currency}&include_24hr_change=true`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('coingecko ' + res.status);
@@ -159,7 +156,12 @@ export async function fetchPrices(
     const out: Prices = {};
     symbols.forEach((sym) => {
       const entry = data[symToCg[sym]];
-      if (entry) out[sym] = { price: entry.usd, change: entry.usd_24h_change ?? 0 };
+      if (entry) {
+        out[sym] = {
+          price: (entry[currency] as number) ?? 0,
+          change: (entry[`${currency}_24h_change`] as number) ?? 0,
+        };
+      }
     });
     return out;
   } catch {

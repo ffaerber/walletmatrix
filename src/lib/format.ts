@@ -6,11 +6,36 @@ export function fmtAmount(n: number): string {
   return n.toFixed(6);
 }
 
+export type FiatCurrency = 'usd' | 'eur' | 'gbp' | 'chf' | 'jpy' | 'cny' | 'krw' | 'btc' | 'eth';
+
+const FIAT_SYMBOLS: Record<FiatCurrency, string> = {
+  usd: '$', eur: '€', gbp: '£', chf: 'CHF ', jpy: '¥', cny: '¥', krw: '₩', btc: '₿', eth: 'Ξ',
+};
+
+const FIAT_LABELS: Record<FiatCurrency, string> = {
+  usd: 'US Dollar', eur: 'Euro', gbp: 'British Pound', chf: 'Swiss Franc',
+  jpy: 'Japanese Yen', cny: 'Chinese Yuan', krw: 'Korean Won', btc: 'Bitcoin', eth: 'Ether',
+};
+
+export const CURRENCIES: { id: FiatCurrency; symbol: string; label: string }[] =
+  (Object.keys(FIAT_SYMBOLS) as FiatCurrency[]).map((id) => ({
+    id,
+    symbol: FIAT_SYMBOLS[id],
+    label: FIAT_LABELS[id],
+  }));
+
+export function fmtFiat(n: number, currency: FiatCurrency = 'usd'): string {
+  const sym = FIAT_SYMBOLS[currency];
+  const noDecimals = currency === 'jpy' || currency === 'krw';
+  if (!n) return `${sym}0`;
+  if (n >= 1000) return `${sym}${n.toLocaleString('en-US', { maximumFractionDigits: noDecimals ? 0 : 0 })}`;
+  if (n >= 1) return `${sym}${noDecimals ? Math.round(n) : n.toFixed(2)}`;
+  return `${sym}${noDecimals ? n.toFixed(0) : n.toFixed(3)}`;
+}
+
+// Backward compat — some tests reference fmtUsd directly.
 export function fmtUsd(n: number): string {
-  if (!n) return '$0';
-  if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-  if (n >= 1) return `$${n.toFixed(2)}`;
-  return `$${n.toFixed(3)}`;
+  return fmtFiat(n, 'usd');
 }
 
 export function shortAddr(a: string | null | undefined): string {

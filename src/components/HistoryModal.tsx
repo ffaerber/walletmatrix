@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useWallet } from '../state/WalletContext';
 import { CHAINS_BY_ID } from '../lib/chains';
 import { TokenIcon, ChainIcon } from './Icons';
-import { fmtAmount, fmtUsd } from '../lib/format';
+import { fmtAmount, fmtFiat } from '../lib/format';
 import type { ChainId } from '../lib/types';
 
 const RANGES = [
@@ -49,7 +49,8 @@ const TX_ICON_COLOR: Record<string, string> = {
 };
 
 export function HistoryModal({ tokenId, chainId, onClose }: { tokenId: string; chainId: ChainId; onClose: () => void }) {
-  const { tokens, balances, prices } = useWallet();
+  const { tokens, balances, prices, currency } = useWallet();
+  const fmt = (n: number) => fmtFiat(n, currency);
   const token = tokens.find((t) => t.id === tokenId);
   const chain = CHAINS_BY_ID[chainId];
   const [range, setRange] = useState('3m');
@@ -85,8 +86,8 @@ export function HistoryModal({ tokenId, chainId, onClose }: { tokenId: string; c
         </header>
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2.5">
-          <Stat label="Current Balance" value={`${fmtAmount(current)} ${token.symbol}`} sub={fmtUsd(current * price)} />
-          <Stat label="All-Time High" value={`${fmtAmount(ath)} ${token.symbol}`} sub={fmtUsd(ath * price)} />
+          <Stat label="Current Balance" value={`${fmtAmount(current)} ${token.symbol}`} sub={fmt(current * price)} />
+          <Stat label="All-Time High" value={`${fmtAmount(ath)} ${token.symbol}`} sub={fmt(ath * price)} />
           <Stat label="First Acquired" value={firstDate} />
           <Stat label="Transactions" value={String(txs.length)} />
         </div>

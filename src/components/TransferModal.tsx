@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useWallet } from '../state/WalletContext';
 import { CHAINS_BY_ID } from '../lib/chains';
 import { TokenIcon, ChainIcon } from './Icons';
-import { fmtAmount, fmtUsd } from '../lib/format';
+import { fmtAmount, fmtFiat } from '../lib/format';
 import { useToast } from './Toast';
 import { executeQuote, fetchQuote, type TxStage } from '../lib/execute';
 import { resolveTokenDecimals } from '../lib/tokenAddresses';
@@ -12,7 +12,8 @@ import type { Chain, Token, TransferIntent } from '../lib/types';
 const btnBase = 'font-sans font-semibold border rounded-xl cursor-pointer transition-transform active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed';
 
 export function TransferModal({ intent, onClose }: { intent: TransferIntent; onClose: () => void }) {
-  const { tokens, balances, prices, applyTransfer, demo, address, realTxEnabled, refreshBalances } = useWallet();
+  const { tokens, balances, prices, applyTransfer, demo, address, realTxEnabled, refreshBalances, currency } = useWallet();
+  const fmt = (n: number) => fmtFiat(n, currency);
   const { push } = useToast();
 
   const fromToken = tokens.find((t) => t.id === intent.fromTid);
@@ -110,9 +111,9 @@ export function TransferModal({ intent, onClose }: { intent: TransferIntent; onC
         </header>
 
         <div className="grid grid-cols-[1fr_auto_1fr] max-sm:grid-cols-1 items-center gap-3">
-          <Side label="From" token={fromT} chain={fromC} balance={fromBalance} />
+          <Side label="From" token={fromT} chain={fromC} balance={fromBalance} fmt={fmt} />
           <div className="text-2xl text-accent text-center">{sameToken ? '→' : '⇄'}</div>
-          <Side label="To" token={toT} chain={toC} balance={toBalance} />
+          <Side label="To" token={toT} chain={toC} balance={toBalance} fmt={fmt} />
         </div>
 
         <label className="flex flex-col gap-1.5">
@@ -135,8 +136,8 @@ export function TransferModal({ intent, onClose }: { intent: TransferIntent; onC
           <div className="flex flex-wrap gap-3 font-mono text-xs text-muted pt-2 border-t border-dashed border-border">
             <span>Tool: <b className="text-text">{toolName}</b></span>
             <span>Duration: {Math.max(1, Math.round(duration / 60))}m</span>
-            {feeUsd > 0 && <span>Fee: {fmtUsd(feeUsd)}</span>}
-            {gasUsd > 0 && <span>Gas: {fmtUsd(gasUsd)}</span>}
+            {feeUsd > 0 && <span>Fee: {fmt(feeUsd)}</span>}
+            {gasUsd > 0 && <span>Gas: {fmt(gasUsd)}</span>}
           </div>
         )}
 
@@ -173,7 +174,7 @@ export function TransferModal({ intent, onClose }: { intent: TransferIntent; onC
   );
 }
 
-function Side({ label, token, chain, balance }: { label: string; token: Token; chain: Chain; balance: number }) {
+function Side({ label, token, chain, balance, fmt }: { label: string; token: Token; chain: Chain; balance: number; fmt: (n: number) => string }) {
   return (
     <div className="bg-surface-2 border border-border border-l-[3px] rounded-xl p-3.5 flex flex-col gap-2" style={{ borderLeftColor: chain.color }}>
       <div className="text-muted text-xs">{label}</div>
@@ -184,7 +185,7 @@ function Side({ label, token, chain, balance }: { label: string; token: Token; c
           <div className="text-muted text-xs">on {chain.name}</div>
         </div>
       </div>
-      <div className="text-muted text-xs">Balance: {fmtAmount(balance)} {token.symbol} · {fmtUsd(balance * (token.price || 0))}</div>
+      <div className="text-muted text-xs">Balance: {fmtAmount(balance)} {token.symbol} · {fmt(balance * (token.price || 0))}</div>
     </div>
   );
 }

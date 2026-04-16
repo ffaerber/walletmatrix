@@ -8,10 +8,12 @@ import { HistoryModal } from '../components/HistoryModal';
 import { TokenManager } from '../components/TokenManager';
 import { NetworkManager } from '../components/NetworkManager';
 import {
+  CURRENCIES,
   DEMO_ADDRESS_PARAM,
   fmtRelative,
   isAddress,
   shortAddr,
+  type FiatCurrency,
 } from '../lib/format';
 import { resolveEns } from '../lib/ens';
 import { useToast } from '../components/Toast';
@@ -37,6 +39,8 @@ export default function MatrixPage() {
     disconnect,
     lastRefreshedAt,
     fromCache,
+    currency,
+    setCurrency,
   } = useWallet();
   const [view, setView] = useState<MatrixView>('hasBalance');
   const [sort, setSort] = useState<MatrixSort>('value');
@@ -133,6 +137,18 @@ export default function MatrixPage() {
             <button className={`${segBtn} ${sort === 'name' ? 'bg-surface-2 text-text' : ''}`} onClick={() => setSort('name')}>By name</button>
             <button className={`${segBtn} ${sort === 'custom' ? 'bg-surface-2 text-text' : ''}`} onClick={() => setSort('custom')}>Custom</button>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted text-xs">Currency</span>
+          <select
+            className="bg-surface border border-border rounded-xl py-1.5 px-2 text-[13px] font-semibold cursor-pointer"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value as FiatCurrency)}
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.id} value={c.id}>{c.symbol} {c.id.toUpperCase()}</option>
+            ))}
+          </select>
         </div>
         <div className="flex-1" />
         <button className={btn} onClick={() => setShowNetworkMgr(true)}>Networks</button>

@@ -2,13 +2,14 @@ import { useMemo } from 'react';
 import { useWallet } from '../state/WalletContext';
 import { CHAINS } from '../lib/chains';
 import { ChainIcon } from './Icons';
-import { fmtUsd } from '../lib/format';
+import { fmtFiat } from '../lib/format';
 import type { Chain } from '../lib/types';
 
 const btn = 'font-sans font-semibold border border-border bg-transparent text-text py-1.5 px-3 rounded-xl cursor-pointer text-[13px] hover:border-accent';
 
 export function NetworkManager({ onClose }: { onClose: () => void }) {
-  const { tokens, balances, prices, hiddenChains, toggleHideChain, showAllChains } = useWallet();
+  const { tokens, balances, prices, hiddenChains, currency, toggleHideChain, showAllChains } = useWallet();
+  const fmt = (n: number) => fmtFiat(n, currency);
 
   const totals = useMemo(() => {
     const out: Record<string, number> = {};
@@ -56,7 +57,7 @@ export function NetworkManager({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="text-muted text-xs">{c.short} · {c.native}</div>
                 </div>
-                <div className="text-muted font-mono">{value > 0 ? fmtUsd(value) : '—'}</div>
+                <div className="text-muted font-mono">{value > 0 ? fmt(value) : '—'}</div>
                 <button className={btn} onClick={() => toggleHideChain(c.id)}>
                   {isHidden ? 'Show' : 'Hide'}
                 </button>

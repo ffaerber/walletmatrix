@@ -21,6 +21,7 @@ import type {
   Prices,
   Token,
 } from '../lib/types';
+import type { FiatCurrency } from '../lib/format';
 
 // Alchemy key is optional — when absent we use known-contract probing.
 // Swarm bundles are static so this is read from Vite's build-time env.
@@ -45,6 +46,7 @@ interface WalletState {
   customTokens: Token[];
   tokenOrder: string[];     // persisted custom row order (token IDs)
   chainOrder: string[];     // persisted custom column order (chain IDs)
+  currency: FiatCurrency;   // fiat currency for price display
   // Epoch ms of the most recent scan (or cache hit). `null` before any load.
   lastRefreshedAt: number | null;
   // True when the current data came from localStorage rather than a fresh
@@ -84,6 +86,7 @@ interface WalletContextValue extends WalletState {
   showAllChains: () => void;
   setTokenOrder: (order: string[]) => void;
   setChainOrder: (order: string[]) => void;
+  setCurrency: (c: FiatCurrency) => void;
   addCustomToken: (draft: CustomTokenDraft) => void;
   removeCustomToken: (tid: string) => void;
   applyTransfer: (args: TransferArgs) => void;
@@ -105,6 +108,7 @@ function makeInitial(): WalletState {
     customTokens: storage.getCustom(),
     tokenOrder: storage.getTokenOrder(),
     chainOrder: storage.getChainOrder(),
+    currency: storage.getCurrency() as FiatCurrency,
     lastRefreshedAt: null,
     fromCache: false,
   };
@@ -121,6 +125,8 @@ function tokenSymbol(
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WalletState>(makeInitial);
+  const currencyRef = useRef(state.currency);
+  currencyRef.current = state.currency;
   // Tracks the last key we loaded for (lowercase address or 'demo') so we
   // don't re-scan when MatrixPage re-renders or StrictMode double-invokes
   // our effects.
@@ -210,7 +216,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     // Prices (CoinGecko, keyless). Pass tokens with cgId + extras for
     // ad-hoc native symbols not in the catalog (BNB, AVAX, etc.).
-    const prices = await fetchPrices(DEFAULT_TOKENS, NATIVE_CG_IDS);
+    const prices = await fetchPrices(DEFAULT_TOKENS, NATIVE_CG_IDS, currencyRef.current);
 
     // Persist so repeat visits don't need to re-scan all chains.
     storage.setScanCache(address, { balances, prices });
@@ -356,6 +362,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, chainOrder: order }));
   }, []);
 
+  const setCurrency = useCallback((c: FiatCurrency) => {
+    storage.setCurrency(c);
+    setState((s) => ({ ...s, currency: c }));
+  }, []);
+
   const addCustomToken = useCallback((draft: CustomTokenDraft) => {
     setState((s) => {
       const id = draft.symbol.toLowerCase();
@@ -449,6 +460,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       showAllChains,
       setTokenOrder,
       setChainOrder,
+      setCurrency,
       addCustomToken,
       removeCustomToken,
       applyTransfer,
@@ -468,6 +480,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       showAllChains,
       setTokenOrder,
       setChainOrder,
+      setCurrency,
       addCustomToken,
       removeCustomToken,
       applyTransfer,

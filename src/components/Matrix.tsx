@@ -7,7 +7,7 @@ import {
 import { useWallet } from '../state/WalletContext';
 import { CHAINS, CHAINS_BY_ID } from '../lib/chains';
 import { TokenIcon, ChainIcon } from './Icons';
-import { fmtAmount, fmtUsd } from '../lib/format';
+import { fmtAmount, fmtFiat } from '../lib/format';
 import { isNativeOnChain } from '../lib/tokenAddresses';
 import { getValidBridgeTargets } from '../lib/lifiTokens';
 import type { Chain, ChainId, Token } from '../lib/types';
@@ -62,7 +62,8 @@ function applyOrder<T extends { id: string }>(items: T[], order: string[]): T[] 
 }
 
 export function Matrix({ view, sort, onSortChange, onCell, onDrop }: MatrixProps) {
-  const { tokens, balances, prices, hidden, hiddenChains, tokenOrder, chainOrder, setTokenOrder, setChainOrder } = useWallet();
+  const { tokens, balances, prices, hidden, hiddenChains, tokenOrder, chainOrder, currency, setTokenOrder, setChainOrder } = useWallet();
+  const fmt = (n: number) => fmtFiat(n, currency);
   const [dragCtx, setDragCtx] = useState<DragCtx | null>(null);
   const [chainDropTarget, setChainDropTarget] = useState<string | null>(null);
   const [tokenDropTarget, setTokenDropTarget] = useState<string | null>(null);
@@ -187,7 +188,7 @@ export function Matrix({ view, sort, onSortChange, onCell, onDrop }: MatrixProps
                   <ChainIcon chainId={c.id} size={22} />
                   <div>
                     <div className="font-sans font-semibold text-text">{c.name}</div>
-                    <div className="font-mono text-muted text-[11px]">{fmtUsd(columnTotals[c.id] ?? 0)}</div>
+                    <div className="font-mono text-muted text-[11px]">{fmt(columnTotals[c.id] ?? 0)}</div>
                   </div>
                 </div>
               </th>
@@ -219,7 +220,7 @@ export function Matrix({ view, sort, onSortChange, onCell, onDrop }: MatrixProps
           <tr>
             <td className="text-left p-2.5"><span className="text-muted">Grand total</span></td>
             <td colSpan={activeChains.length} />
-            <td className="min-w-[150px] bg-surface-2 border border-border rounded-xl p-2.5 text-right font-mono font-bold text-yellow text-lg">{fmtUsd(grandTotal)}</td>
+            <td className="min-w-[150px] bg-surface-2 border border-border rounded-xl p-2.5 text-right font-mono font-bold text-yellow text-lg">{fmt(grandTotal)}</td>
           </tr>
         </tfoot>
       </table>
@@ -249,6 +250,8 @@ interface MatrixRowProps {
 }
 
 function MatrixRow({ row, activeChains, maxUsd, dragCtx, tokenDropTarget, onCell, onDrop, onCellDragStart, onCellDragEnd, onTokenDragStart, onTokenDragOver, onTokenDragLeave, onTokenDrop }: MatrixRowProps) {
+  const { currency } = useWallet();
+  const fmt = (n: number) => fmtFiat(n, currency);
   const { token, row: bal, price, change, totalAmount, totalUsd } = row;
   const barPct = Math.round((totalUsd / maxUsd) * 100);
   const isDropTarget = tokenDropTarget === token.id;
@@ -292,7 +295,7 @@ function MatrixRow({ row, activeChains, maxUsd, dragCtx, tokenDropTarget, onCell
       <td className="min-w-[150px] bg-surface-2 border border-border rounded-xl p-2.5 text-right">
         <div className="flex flex-col gap-0.5 items-end">
           <div className="font-bold">{fmtAmount(totalAmount)}</div>
-          <div className="text-yellow text-xs">{fmtUsd(totalUsd)}</div>
+          <div className="text-yellow text-xs">{fmt(totalUsd)}</div>
           <div className="h-1 w-full bg-border rounded-sm overflow-hidden">
             <span className="block h-full bg-gradient-to-r from-accent to-green" style={{ width: `${barPct}%` }} />
           </div>
@@ -320,6 +323,8 @@ function MatrixCell({
   tokenId, chainId, amount, price, change, isNative,
   dragCtx, onCell, onDrop, onDragStart, onDragEnd,
 }: MatrixCellProps) {
+  const { currency } = useWallet();
+  const fmt = (n: number) => fmtFiat(n, currency);
   const [hovering, setHovering] = useState(false);
   const usd = amount * price;
   const isHigh = usd >= 500;
@@ -390,7 +395,7 @@ function MatrixCell({
       ) : (
         <div className="flex flex-col gap-0.5 items-end">
           <div className="font-bold">{fmtAmount(amount)}</div>
-          <div className="text-muted text-[11px]">{fmtUsd(usd)}</div>
+          <div className="text-muted text-[11px]">{fmt(usd)}</div>
           <div className={`text-[11px] ${change >= 0 ? 'text-green' : 'text-red'}`}>
             {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
           </div>

@@ -5,6 +5,7 @@ const HIDDEN_CHAINS_KEY = 'wm_hidden_chains';
 const CUSTOM_TOKENS_KEY = 'wm_custom_tokens';
 const TOKEN_ORDER_KEY = 'wm_token_order';
 const CHAIN_ORDER_KEY = 'wm_chain_order';
+const CURRENCY_KEY = 'wm_currency';
 const SCAN_CACHE_PREFIX = 'wm_scan_'; // wm_scan_<lowercaseAddress>
 const SCAN_CACHE_VERSION = 2; // bumped: chain IDs changed to numeric strings
 
@@ -47,6 +48,10 @@ export const storage = {
   // --- chain order ---------------------------------------------------------
   getChainOrder: (): string[] => read<string[]>(CHAIN_ORDER_KEY, []),
   setChainOrder: (list: string[]): void => write(CHAIN_ORDER_KEY, list),
+
+  // --- currency ------------------------------------------------------------
+  getCurrency: (): string => read<string>(CURRENCY_KEY, 'usd'),
+  setCurrency: (c: string): void => write(CURRENCY_KEY, c),
 
   // --- custom tokens ------------------------------------------------------
   getCustom: (): Token[] => read<Token[]>(CUSTOM_TOKENS_KEY, []),
